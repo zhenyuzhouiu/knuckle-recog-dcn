@@ -70,6 +70,8 @@ class Model(object):
                 else:
                     if args.model == "DCLAKNet":
                         inference = netdef_128.DCLAKNet()
+                    elif args.model == "CLAKNet":
+                        inference = netdef_128.CLAKNet()
 
         examples = iter(self.train_loader)
         example_data, example_target = examples.next()

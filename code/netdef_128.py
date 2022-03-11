@@ -170,7 +170,7 @@ class TNet_16(torch.nn.Module):
         B, HW, C = x.shape
         x = x.transpose(1, 2).view(B, C, 8, 8)
         x = self.conv(x)
-        # x = F.relu(x)
+        x = F.relu(x)
 
         return x
 
@@ -338,7 +338,7 @@ class OldCTNet(torch.nn.Module):
         torch.nn.init.trunc_normal_(self.pos_embed1, std=0.02)
         torch.nn.init.trunc_normal_(self.pos_embed2, std=0.02)
 
-        # self.apply(_init_vit_weights)
+        self.apply(_init_vit_weights)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
@@ -353,16 +353,16 @@ class OldCTNet(torch.nn.Module):
         x = x.transpose(1, 2).view(B, C, 32, 32)
         y = F.relu(self.conv(x))
 
-        # x = F.relu(self.conv3(x))
-        #
-        # x = self.patch_embed2(x)
-        # x = self.pos_drop2(x + self.pos_embed2)
-        # x = self.blocks2(x)
-        # x = self.norm2(x)
-        #
-        # B, HW, C = x.shape
-        # x = x.transpose(1,2).view(B, C, 8, 8)
-        #
+        x = F.relu(self.conv3(x))
+
+        x = self.patch_embed2(x)
+        x = self.pos_drop2(x + self.pos_embed2)
+        x = self.blocks2(x)
+        x = self.norm2(x)
+
+        B, HW, C = x.shape
+        x = x.transpose(1,2).view(B, C, 8, 8)
+
         # x = F.relu(self.conv4(x))
         return y
 
@@ -370,14 +370,16 @@ class OldCTNet(torch.nn.Module):
 class DCLAKNet(torch.nn.Module):
     def __init__(self):
         super(DCLAKNet, self).__init__()
-        self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1)
-        self.conv2 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=5, stride=2, padding=2)
+        self.conv1 = DeformableConv2d1v(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.conv2 = DeformableConv2d1v(in_channels=64, out_channels=128, kernel_size=5, stride=2, padding=2)
         self.lka1= LKA(dim=128)
-        self.conv3 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1)
-        self.conv4 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=5, stride=2, padding=2)
+        self.conv3 = DeformableConv2d1v(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1)
+        self.conv4 = DeformableConv2d1v(in_channels=128, out_channels=128, kernel_size=5, stride=2, padding=2)
         self.lka2 = LKA(dim=128)
-        self.conv5 = torch.nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1)
-        self.conv6 = torch.nn.Conv2d(in_channels=64, out_channels=1, kernel_size=1, stride=1)
+        self.conv5 = DeformableConv2d1v(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.conv6 = DeformableConv2d1v(in_channels=64, out_channels=1, kernel_size=1, stride=1)
+
+        self.apply(_init_vit_weights)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
@@ -387,7 +389,35 @@ class DCLAKNet(torch.nn.Module):
         x = F.relu(self.conv4(x))
         x = self.lka2(x)
         x = F.relu(self.conv5(x))
-        x = F.relu(self.conv6(x))
+        # x = F.relu(self.conv6(x))
+        x = self.conv6(x)
+        return x
+
+
+class CLAKNet(torch.nn.Module):
+    def __init__(self):
+        super(CLAKNet, self).__init__()
+        self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.conv2 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=5, stride=2, padding=2)
+        self.lka1= LKA(dim=128)
+        self.conv3 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1)
+        self.conv4 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=5, stride=2, padding=2)
+        self.lka2 = LKA(dim=128)
+        self.conv5 = torch.nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.conv6 = torch.nn.Conv2d(in_channels=64, out_channels=1, kernel_size=1, stride=1)
+
+        self.apply(_init_vit_weights)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = self.lka1(x)
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv4(x))
+        x = self.lka2(x)
+        x = F.relu(self.conv5(x))
+        # x = F.relu(self.conv6(x))
+        x = self.conv6(x)
         return x
 
 

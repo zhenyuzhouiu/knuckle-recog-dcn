@@ -22,12 +22,12 @@ def build_parser():
 
     parser.add_argument('--checkpoint_dir', type=str,
                         dest='checkpoint_dir', default='./checkpoint/')
-    parser.add_argument('--db_prefix', dest='db_prefix', default='HD')
+    parser.add_argument('--db_prefix', dest='db_prefix', default='FKV1')
     parser.add_argument('--checkpoint_interval', type=int, dest='checkpoint_interval',
                         default=20)
     
     # Dataset Options
-    parser.add_argument('--train_path', type=str, dest='train_path', default='/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/HD/Original Images/GUI_Segment/dataset/train_set')
+    parser.add_argument('--train_path', type=str, dest='train_path', default='/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/PolyUKnuckleV1/Segmented/GUI_Seg/major/dataset/train_set')
 
     # Training Strategy
     parser.add_argument('--batch_size', type=int, dest='batch_size', default=4)
@@ -39,7 +39,7 @@ def build_parser():
     
     # Pre-defined Options
     parser.add_argument('--alpha', type=float, dest='alpha', default=10)
-    parser.add_argument('--model', type=str, dest='model', default="TNet_16")
+    parser.add_argument('--model', type=str, dest='model', default="DCLAKNet")
     parser.add_argument('--shifted_size', type=int, dest='shifted_size', default=3)
 
     # fine-tuning
