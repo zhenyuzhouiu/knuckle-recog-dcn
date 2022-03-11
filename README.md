@@ -1,6 +1,6 @@
-# Online Contactless Palmprint Identification using Deep Learning (Matching Part)
+# Online Contactless Finger-knuckle Identification using Deep Learning (Matching Part)
 
-This is a Pytorch implementation for matching part of Online Contactless Palmprint Identification using Deep Learning.
+This is a Pytorch implementation for matching part of Online Contactless Finger-knuckle Identification using Deep Learning.
 
 We provide two architecture based on the proposed Residual Feature Network (RFN), which we name them as RFN-32 and RFN-128. The RFN-32 is designed with larger receptive field on first conv layer while RFN-128 is designed with wider residual block. It is found that RFN-32 with larger receptive field at first has a better performance on CASIA cross database test. So, in short, **please use `--model RFN-32` when training for CASIA crossdb test and uise `--model RFN-128` for others**.
 
