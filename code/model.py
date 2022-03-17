@@ -94,7 +94,7 @@ class Model(object):
             start_epoch = 1
     
         for e in range(start_epoch, args.epochs + start_epoch):
-            self.exp_lr_scheduler(e, lr_decay_epoch=100)
+            self.exp_lr_scheduler(e, lr_decay_epoch=200)
             self.inference.train()
             agg_loss = 0.
             count = 0

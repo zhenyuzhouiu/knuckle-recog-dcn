@@ -22,17 +22,17 @@ def build_parser():
 
     parser.add_argument('--checkpoint_dir', type=str,
                         dest='checkpoint_dir', default='./checkpoint/')
-    parser.add_argument('--db_prefix', dest='db_prefix', default='HD(1-4)')
+    parser.add_argument('--db_prefix', dest='db_prefix', default='3D1S')
     parser.add_argument('--checkpoint_interval', type=int, dest='checkpoint_interval',
                         default=20)
     
     # Dataset Options
-    parser.add_argument('--train_path', type=str, dest='train_path', default='/home/zhenyuzhou/Pictures/Finger-knuckle/HD(1-4)/train_set')
+    parser.add_argument('--train_path', type=str, dest='train_path', default='/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/3Dfingerknuckle/3D Finger Knuckle Database New (20190711)/two-session/forefinger/session1-190')
 
     # Training Strategy
     parser.add_argument('--batch_size', type=int, dest='batch_size', default=4)
     parser.add_argument('--epochs', type=int, dest='epochs', default=3000)
-    parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=5e-5)
+    parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=5e-4)
     
     # Training Logging Interval
     parser.add_argument('--log_interval', type=int, dest='log_interval', default=1)
@@ -43,7 +43,7 @@ def build_parser():
     parser.add_argument('--shifted_size', type=int, dest='shifted_size', default=3)
 
     # fine-tuning
-    parser.add_argument('--start_ckpt', type=str, dest='start_ckpt', default="/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/checkpoint/FKV1_a10s3mRFN-128_2022-03-10-23-03-41/ckpt_epoch_1280.pth")
+    parser.add_argument('--start_ckpt', type=str, dest='start_ckpt', default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/FKV1_a10s3mCLAKNet_2022-03-11-00-06-52/ckpt_epoch_1240.pth")
     return parser
 
 def main():

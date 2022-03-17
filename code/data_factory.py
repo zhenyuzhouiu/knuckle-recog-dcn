@@ -82,15 +82,15 @@ class Factory(Dataset):
 
         selected_folder = self.subfolder_names[index]
         anchor = randpick_list(self.fdict[selected_folder])
-        # positive = randpick_list(self.fdict[selected_folder], [anchor])
+        positive = randpick_list(self.fdict[selected_folder], [anchor])
         
         img = []
         # options = 'L' just convert image to gray image
         # img.append(np.expand_dims(load_image(join(self.folder, selected_folder, positive), options='RGB'), -1))
         # img.append(np.expand_dims(load_image(join(self.folder, selected_folder, anchor), options='RGB'), -1))
         img.append(load_image(join(self.folder, selected_folder, anchor), options='RGB'))
-        # img.append(load_image(join(self.folder, selected_folder, positive), options='RGB'))
-        img.append(load_image(join(self.folder, selected_folder, anchor), options='RGB'))
+        img.append(load_image(join(self.folder, selected_folder, positive), options='RGB'))
+        # img.append(load_image(join(self.folder, selected_folder, anchor), options='RGB'))
         for i in range(10):
             negative_folder = randpick_list(self.subfolder_names, [selected_folder])
             negative = randpick_list(self.fdict[negative_folder])
