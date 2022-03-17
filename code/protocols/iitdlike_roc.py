@@ -125,9 +125,9 @@ def genuine_imposter(test_path):
     return np.array(g_scores), np.array(i_scores), matt
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--test_path", type=str, default="/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/HD/Original Images/GUI_Segment/dataset/test_set", dest="test_path")
-parser.add_argument("--out_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/tnet_16/protocol3.npy", dest="out_path")
-parser.add_argument("--model_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/HD_a10s3mTNet_16_2022-03-04-13-29-58/ckpt_epoch_80.pth", dest="model_path")
+parser.add_argument("--test_path", type=str, default="/home/zhenyuzhou/Pictures/Finger-knuckle/HD(1-4)/test_set", dest="test_path")
+parser.add_argument("--out_path", type=str, default="/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/RFN-128-1-4/protocol3.npy", dest="out_path")
+parser.add_argument("--model_path", type=str, default="/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/checkpoint/HD(1-4)_a1000s3mRFN-128_2022-03-11-11-51-54/ckpt_epoch_2200.pth", dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=128)
 parser.add_argument("--shift_size", type=int, dest="shift_size", default=3)
 parser.add_argument("--save_mmat", type=bool, dest="save_mmat", default=True)

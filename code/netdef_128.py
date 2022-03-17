@@ -428,5 +428,11 @@ class DConvAttentionCorr(torch.nn.Module):
         self.dconv2 = net_common.DeformableConv2d2v(in_channels=64, out_channels=128)
 
 
+class FKNet(torch.nn.Module):
+    def __init__(self):
+        super(FKNet, self).__init__()
+        self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=64, kernel_size=7, stride=3)
+        self.bn = nn.B
+
 
 

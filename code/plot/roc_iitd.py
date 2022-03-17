@@ -12,8 +12,8 @@ import argparse
 from plotroc_basic import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--src_npy', type=str, dest='src_npy', default='/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/tnet_16/protocol3.npy')
-parser.add_argument('--dest', type=str, dest='dest', default='/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/tnet_16/protocol3_roc.pdf')
+parser.add_argument('--src_npy', type=str, dest='src_npy', default='/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/RFN-128/protocol3.npy')
+parser.add_argument('--dest', type=str, dest='dest', default='/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/fkv1(3-2)/protocol3_roc.pdf')
 parser.add_argument('--label', type=str, dest='label', default='RFN-128')
 
 args = parser.parse_args()
@@ -25,20 +25,20 @@ if args.label == '':
     args.label = args.src_npy
 
 
-src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/tnet_16/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/ctnet/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/dclka/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/rfn-128/protocol3.npy']
-label = ["TNet-16",
+src_npy = ['/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/fkv1(3-2)/claknet/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/fkv1(3-2)/dclaknet/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/fkv1(3-2)/ctnet/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/fkv1(3-2)/rfn/protocol3.npy']
+label = ['CLAKNet',
+         'DCLAKNet',
          'CTNet',
-         'DCLKANet',
          'RFN-128']
 
 color = ['#DC143C',
          '#0000FF',
          '#00FF00',
          '#FFA500']
-dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/protocols.pdf'
+dst = '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/RFN-128-1-4/protocol3_roc.pdf'
 
 for i in range(4):
     data = np.load(src_npy[i], allow_pickle=True)[()]
@@ -79,8 +79,8 @@ for i in range(4):
     for axis in ['top','bottom','left','right']:
         ax.spines[axis].set_linewidth(2.0)
 
-    plt.xticks(np.array([-4, -2, 0]), ['$10^{-4}$', '$10^{-2}$', '$10^{0}$'], fontsize=16)
-    plt.yticks(np.array([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]), fontsize=16)
+    plt.xticks(np.array([-4 , -2, 0]), ['$10^{-4}$', '$10^{-2}$', '$10^{0}$'], fontsize=16)
+    plt.yticks(np.array([0, 0.2, 0.4, 0.6, 0.8, 1]), fontsize=16)
 
 if args.dest:
     plt.savefig(args.dest, bbox_inches='tight')

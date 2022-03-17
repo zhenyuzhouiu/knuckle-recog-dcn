@@ -67,7 +67,7 @@ class Factory(Dataset):
         self.min_subj = 1000000
         for sf in self.subfolder_names:
             inames = [d for d in os.listdir(join(self.folder, sf)) if self._has_ext(d)]
-            if len(inames) < 2 and self.train:
+            if len(inames) < 1 and self.train:
                 raise RuntimeError('Pls make sure there are at least two images in {}'.format(
                     join(self.folder, sf)
                 ))
@@ -82,13 +82,14 @@ class Factory(Dataset):
 
         selected_folder = self.subfolder_names[index]
         anchor = randpick_list(self.fdict[selected_folder])
-        positive = randpick_list(self.fdict[selected_folder], [anchor])
+        # positive = randpick_list(self.fdict[selected_folder], [anchor])
         
         img = []
         # options = 'L' just convert image to gray image
         # img.append(np.expand_dims(load_image(join(self.folder, selected_folder, positive), options='RGB'), -1))
         # img.append(np.expand_dims(load_image(join(self.folder, selected_folder, anchor), options='RGB'), -1))
-        img.append(load_image(join(self.folder, selected_folder, positive), options='RGB'))
+        img.append(load_image(join(self.folder, selected_folder, anchor), options='RGB'))
+        # img.append(load_image(join(self.folder, selected_folder, positive), options='RGB'))
         img.append(load_image(join(self.folder, selected_folder, anchor), options='RGB'))
         for i in range(10):
             negative_folder = randpick_list(self.subfolder_names, [selected_folder])

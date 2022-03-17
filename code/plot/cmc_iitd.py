@@ -9,10 +9,10 @@ import argparse
 from functools import reduce
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--src_npy', type=str, dest='src_npy', default='/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/tnet_16/protocol3.npy')
-parser.add_argument('--dest', type=str, dest='dest', default='/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/tnet_16/protocol3_cmc.pdf')
+parser.add_argument('--src_npy', type=str, dest='src_npy', default='/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/RFN-128/protocol3.npy')
+parser.add_argument('--dest', type=str, dest='dest', default='/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/hd(1-4)/protocol3_cmc.pdf')
 parser.add_argument('--label', type=str, dest='label', default='RFN-128')
-parser.add_argument('--save_cmc', type=bool, dest='save_cmc', default=True)
+parser.add_argument('--save_cmc', type=bool, dest='save_cmc', default=False)
 args = parser.parse_args()
 
 if args.dest == '':
@@ -21,22 +21,22 @@ if args.dest == '':
 if args.label == '':
     args.label = args.src_npy
 
-nobject = 3
+nobject = 4
 
-src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/tnet_16/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/ctnet/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/dclka/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/rfn-128/protocol3.npy']
-label = ["TNet-16",
+src_npy = ['/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/hd(1-4)/claknet/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/hd(1-4)/dclaknet/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/hd(1-4)/ctnet/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/hd(1-4)/rfn/protocol3.npy']
+label = ['CLAKNet',
+         'DCLAKNet',
          'CTNet',
-         'DCLKANet',
          'RFN-128']
 
 color = ['#DC143C',
          '#0000FF',
          '#00FF00',
          '#FFA500']
-dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/protocols.pdf'
+dst = '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/RFN-128/protocol3_cmc.pdf'
 
 for n in range(4):
     data = np.load(src_npy[n], allow_pickle=True)[()]
