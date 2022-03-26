@@ -29,6 +29,75 @@ class ResidualBlock(torch.nn.Module):
         return out
 
 
+class SubShiftedLoss(torch.nn.Module):
+    def __init__(self, dilation, subsize):
+        super(SubShiftedLoss, self).__init__()
+        self.dilation = dilation
+        self.subsize = subsize
+
+    def mse_loss(self, src, target):
+        if isinstance(src, torch.autograd.Variable):
+            return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.data.nelement() * src.size(0)
+        else:
+            return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.nelement() * src.size(0)
+
+    def forward(self, fm1, fm2):
+        # C * H * W
+        bs, _, h, w = fm1.size()
+        if w < self.dilation or h < self.dilation:
+            # % get reminder
+            w_dilation = self.dilation % w
+            h_dilation = self.dilation % h
+            if w_dilation < h_dilation:
+                self.dilation = w_dilation
+            else:
+                self.dilation = h_dilation
+
+        if self.subsize > w or self.subsize > h:
+            if w > h:
+                self.subsize = h
+            else:
+                self.subsize = w
+
+        min_dist = torch.ones(bs).cuda() * sys.float_info.max
+        if isinstance(fm1, torch.autograd.Variable):
+            min_dist = Variable(min_dist, requires_grad=False)
+
+        if self.dilation == 0:
+            dist = self.mse_loss(fm1, fm2).cuda()
+            min_dist, _ = torch.min(torch.stack([min_dist, dist]), 0)
+            return min_dist
+
+        min_dist = torch.zeros(bs).cuda()
+        if isinstance(fm1, torch.autograd.Variable):
+            min_dist = Variable(min_dist, requires_grad=False)
+
+        p_fm2 = F.pad(fm2, pad=[self.dilation, self.dilation, self.dilation, self.dilation], mode='replicate')
+
+        for sub_x in range(0, 32, self.subsize):
+            for sub_y in range(0, 32, self.subsize):
+                ref1 = fm1[:, :, sub_y:sub_y + self.subsize, sub_x:sub_x + self.subsize]
+
+                sub_min_dist = torch.ones(bs).cuda() * sys.float_info.max
+                if isinstance(fm1, torch.autograd.Variable):
+                    sub_min_dist = Variable(sub_min_dist, requires_grad=False)
+
+                for dw in range(-self.dilation, self.dilation + 1):
+                    for dh in range(-self.dilation, self.dilation + 1):
+                        ref2 = p_fm2[:, :, sub_y+self.dilation + dh:sub_y+self.dilation + dh + self.subsize, sub_x+self.dilation + dw:sub_x+self.dilation + dw + self.subsize]
+                        sub_dist = self.mse_loss(ref1, ref2).cuda()
+                        sub_min_dist, _ = torch.min(torch.stack([sub_min_dist.squeeze(), sub_dist.squeeze()]), 0)
+
+                min_dist = min_dist + sub_min_dist
+
+        return min_dist.squeeze()
+
+
+class LearnPatchShiftedLoss(torch.nn.Module):
+    def __init__(self):
+        super(LearnPatchShiftedLoss, self).__init__()
+
+
 class ShiftedLoss(torch.nn.Module):
     def __init__(self, hshift, vshift):
         super(ShiftedLoss, self).__init__()
@@ -49,6 +118,8 @@ class ShiftedLoss(torch.nn.Module):
         if h < self.vshift:
             self.vshift = self.vshift % h
 
+        # min_dist shape (bs, )  & sys.float_info.max is to get the max float value
+        # min_dist save the maximal float value
         min_dist = torch.ones(bs).cuda() * sys.float_info.max
         if isinstance(fm1, torch.autograd.Variable):
             min_dist = Variable(min_dist, requires_grad=False)
@@ -245,6 +316,7 @@ class DropPath(torch.nn.Module):
     """
     Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks).
     """
+
     def __init__(self, drop_prob=None):
         super(DropPath, self).__init__()
         self.drop_prob = drop_prob
@@ -257,6 +329,7 @@ class PatchEmbed(torch.nn.Module):
     """
     2D Image to Patch Embedding
     """
+
     def __init__(self, img_size=224, patch_size=16, in_c=3, embed_dim=768, norm_layer=None):
         super().__init__()
         img_size = (img_size, img_size)
@@ -289,7 +362,7 @@ class Attention(torch.nn.Module):
     """
 
     def __init__(self,
-                 dim,   # input token dimension
+                 dim,  # input token dimension
                  num_heads=8,
                  qkv_bias=False,  # whether add bias for qkv
                  qk_scale=None,
@@ -309,7 +382,6 @@ class Attention(torch.nn.Module):
         self.proj_drop = torch.nn.Dropout(proj_drop_ratio)
 
     def forward(self, x):
-
         # [batch_size, num_patches + 1, total_embed_dim]
         # num_patches + 1 the 1 is the class token
         B, N, C = x.shape
@@ -341,6 +413,7 @@ class Mlp(torch.nn.Module):
     """
     MLP as used in Vision Transformer, MLP-Mixer and related networks
     """
+
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=torch.nn.GELU, drop=0.):
         super().__init__()
         out_features = out_features or in_features
@@ -363,6 +436,7 @@ class Block(torch.nn.Module):
     """
     Encoder Block
     """
+
     def __init__(self,
                  dim,
                  num_heads,
@@ -416,5 +490,5 @@ class Mish(torch.nn.Module):
         super(Mish, self).__init__()
 
     def forward(self, x):
-        x = x* (torch.tanh(F.softplus(x)))
+        x = x * (torch.tanh(F.softplus(x)))
         return x

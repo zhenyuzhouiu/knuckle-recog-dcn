@@ -8,37 +8,37 @@ import random
 import argparse
 from functools import reduce
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--src_npy', type=str, dest='src_npy', default='/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/RFN-128/protocol3.npy')
-parser.add_argument('--dest', type=str, dest='dest', default='/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/hd(1-4)/protocol3_cmc.pdf')
-parser.add_argument('--label', type=str, dest='label', default='RFN-128')
-parser.add_argument('--save_cmc', type=bool, dest='save_cmc', default=False)
-args = parser.parse_args()
+save_cmc = True
 
-if args.dest == '':
-    args.dest = args.src_npy[:args.src_npy.find('.npy')] + "_cmc.pdf"
+nobject = 6
 
-if args.label == '':
-    args.label = args.src_npy
+src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/fkv3subs/deepclaknet/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/3D/dclaknet/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/3D/rfn/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/3Dsubs/deepclaknet-d3-s16/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/3Dsubs/withaploss/deepclaknet-d3-s8/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/hd(1-4)subs/deepclaknet-d3-s16/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/hd(1-4)subs/deepclaknet-d3-s16/protocol3.npy']
 
-nobject = 4
-
-src_npy = ['/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/hd(1-4)/claknet/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/hd(1-4)/dclaknet/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/hd(1-4)/ctnet/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/hd(1-4)/rfn/protocol3.npy']
-label = ['CLAKNet',
+label = ['RFN-128-SUBS',
          'DCLAKNet',
-         'CTNet',
-         'RFN-128']
+         'RFN',
+         'DeepCLAKNet-SUBS',
+         'DeepCLAKNet-SUBS-AP',
+         'DeepCLAKNet-SUBS',
+         'DeepCLAKNet-SUBS']
 
 color = ['#DC143C',
          '#0000FF',
          '#00FF00',
-         '#FFA500']
-dst = '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/RFN-128/protocol3_cmc.pdf'
+         '#FFA500',
+         "#000000",
+         "#ffff00",
+         "#00ffff"]
 
-for n in range(4):
+dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/fkv3subs/deepclaknet/protocol3_cmc.pdf'
+
+for n in range(1):
     data = np.load(src_npy[n], allow_pickle=True)[()]
     match_dict = np.array(data['mmat'])
     nsamples = np.shape(match_dict)[0]
@@ -66,9 +66,10 @@ for n in range(4):
 
     print ("[*] Accuracy: {}".format(y[0]))
 
-    if args.save_cmc:
+    if save_cmc:
         import scipy.io
-        scipy.io.savemat(args.src_npy[:args.src_npy.find('.npy')] + "_cmc.mat", mdict={'r': x, 'ac': y})
+        i_src_npy = src_npy[n]
+        scipy.io.savemat(i_src_npy[:i_src_npy.find('.npy')] + "_cmc.mat", mdict={'r': x, 'ac': y})
 
     xmin, xmax = plt.xlim()
     ymin, ymax = plt.ylim()
@@ -100,5 +101,5 @@ for n in range(4):
     plt.xticks([2, 4, 6, 8, 10], fontsize=16)
     plt.yticks(np.array([0.7, 0.73, 0.76, 0.79, 0.82, 0.85, 0.88, 0.91, 0.94, 0.97, 1]), fontsize=16)
 
-if args.dest:
-    plt.savefig(args.dest, bbox_inches='tight')
+if dst:
+    plt.savefig(dst, bbox_inches='tight')

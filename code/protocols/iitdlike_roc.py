@@ -33,7 +33,7 @@ parent_dir = current_dir[:current_dir.rfind(os.path.sep)]
 sys.path.insert(0, parent_dir)
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 import net_common, netdef_32, netdef_128
 from protocol_util import *
@@ -60,7 +60,7 @@ def calc_feats_more(*paths):
     container = np.zeros((len(paths), 3, args.default_size, args.default_size))
     for i, path in enumerate(paths):
         im = np.array(
-            Image.open(path),
+            Image.open(path).convert('RGB').resize((args.default_size, args.default_size)),
             dtype=np.float32
             )
         im = np.transpose(im, (2, 0, 1))
@@ -125,11 +125,13 @@ def genuine_imposter(test_path):
     return np.array(g_scores), np.array(i_scores), matt
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--test_path", type=str, default="/home/zhenyuzhou/Pictures/Finger-knuckle/HD(1-4)/test_set", dest="test_path")
-parser.add_argument("--out_path", type=str, default="/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/RFN-128-1-4/protocol3.npy", dest="out_path")
-parser.add_argument("--model_path", type=str, default="/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/checkpoint/HD(1-4)_a1000s3mRFN-128_2022-03-11-11-51-54/ckpt_epoch_2200.pth", dest="model_path")
+parser.add_argument("--test_path", type=str, default="/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/Database/Segmented/Session_2_128", dest="test_path")
+parser.add_argument("--out_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/fkv3subs/deepclaknet/protocol3.npy", dest="out_path")
+parser.add_argument("--model_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/fkv3subs_l0.01d3sub4a50nna20s3mDeepCLAKNet_2022-03-26-00-19-06/ckpt_epoch_680.pth", dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=128)
 parser.add_argument("--shift_size", type=int, dest="shift_size", default=3)
+parser.add_argument('--dilation_size', type=int, dest="dilation", default=8)
+parser.add_argument('--subpatch_size', type=int, dest="subsize", default=4)
 parser.add_argument("--save_mmat", type=bool, dest="save_mmat", default=True)
 
 args = parser.parse_args()
@@ -148,13 +150,19 @@ else:
         else:
             if "DCLAKNet" in args.model_path:
                 inference = netdef_128.DCLAKNet()
+            elif "DeepCLAKNet" in args.model_path:
+                inference = netdef_128.DeepCLAKNet()
+            else:
+                if "CLAKNet" in args.model_path:
+                    inference = netdef_128.CLAKNet()
 
 
 inference.load_state_dict(torch.load(args.model_path))
 # inference = torch.jit.load("knuckle-script-polyu.pt")
-ShiftedLoss_ = net_common.ShiftedLoss(args.shift_size, args.shift_size)
+# Loss = net_common.ShiftedLoss(args.shift_size, args.shift_size)
+Loss = net_common.SubShiftedLoss(args.dilation, args.subsize)
 def _loss(feats1, feats2):
-    loss = ShiftedLoss_(feats1, feats2)
+    loss = Loss(feats1, feats2)
     if isinstance(loss, torch.autograd.Variable):
         loss = loss.data
     return loss.cpu().numpy()

@@ -421,6 +421,64 @@ class CLAKNet(torch.nn.Module):
         return x
 
 
+
+class DeepCLAKNet(torch.nn.Module):
+    def __init__(self):
+        super(DeepCLAKNet, self).__init__()
+        # output feature map 32x128x128
+        self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1)
+        self.bn1 = torch.nn.BatchNorm2d(num_features=32)
+        self.lak1 = LKA(dim=32)
+
+        # output feature map 128x64x64
+        self.conv2 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.bn2 = torch.nn.BatchNorm2d(num_features=64)
+        self.conv3 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5, stride=2, padding=2)
+        self.bn3 = torch.nn.BatchNorm2d(num_features=64)
+        self.lak2 = LKA(dim=64)
+
+        # output feature map 256x256
+        self.conv4 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1)
+        self.bn4 = torch.nn.BatchNorm2d(num_features=128)
+        self.conv5 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=5, stride=2, padding=2)
+        self.bn5 = torch.nn.BatchNorm2d(num_features=128)
+        self.lak3 = LKA(dim=128)
+
+        # add all feature map
+        # 128-64
+        self.conv6 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=5, stride=2, padding=2)
+        self.bn6 = torch.nn.BatchNorm2d(num_features=64)
+        # 64-32
+        self.conv7 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=5, stride=2, padding=2)
+        self.bn7 = torch.nn.BatchNorm2d(num_features=128)
+
+        # output feature 1x32x32
+        self.conv8 = torch.nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.conv9 = torch.nn.Conv2d(in_channels=64, out_channels=1, kernel_size=3, stride=1, padding=1)
+
+    def forward(self, x):
+        x = F.relu(self.bn1(self.conv1(x)))
+        x128 = self.lak1(x)
+
+        x = F.relu(self.bn2(self.conv2(x128)))
+        x = F.relu(self.bn3(self.conv3(x)))
+        x64 = self.lak2(x)
+
+        x = F.relu(self.bn4(self.conv4(x64)))
+        x = F.relu(self.bn5(self.conv5(x)))
+        x32 = self.lak3(x)
+
+        x64 = x64 + F.relu(self.bn6(self.conv6(x128)))
+        x32 = x32 + F.relu(self.bn7(self.conv7(x64)))
+
+        out = F.relu(self.conv8(x32))
+        out = F.relu(self.conv9(out))
+
+        return out
+
+
+
+
 class DConvAttentionCorr(torch.nn.Module):
     def __init__(self):
         super(DConvAttentionCorr, self).__init__()
@@ -432,7 +490,6 @@ class FKNet(torch.nn.Module):
     def __init__(self):
         super(FKNet, self).__init__()
         self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=64, kernel_size=7, stride=3)
-        self.bn = nn.B
 
 
 

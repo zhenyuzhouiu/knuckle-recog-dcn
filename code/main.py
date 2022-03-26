@@ -14,6 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
+
 def build_parser():
     parser = argparse.ArgumentParser()
 
@@ -22,53 +23,70 @@ def build_parser():
 
     parser.add_argument('--checkpoint_dir', type=str,
                         dest='checkpoint_dir', default='./checkpoint/')
-    parser.add_argument('--db_prefix', dest='db_prefix', default='3D1S')
+    parser.add_argument('--db_prefix', dest='db_prefix', default='fkv3')
     parser.add_argument('--checkpoint_interval', type=int, dest='checkpoint_interval',
                         default=20)
     
     # Dataset Options
-    parser.add_argument('--train_path', type=str, dest='train_path', default='/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/3Dfingerknuckle/3D Finger Knuckle Database New (20190711)/two-session/forefinger/session1-190')
+    parser.add_argument('--train_path', type=str, dest='train_path', default='/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/Database/Segmented/Session_1_128')
 
     # Training Strategy
-    parser.add_argument('--batch_size', type=int, dest='batch_size', default=4)
+    parser.add_argument('--batch_size', type=int, dest='batch_size', default=8)
     parser.add_argument('--epochs', type=int, dest='epochs', default=3000)
-    parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=5e-4)
+    parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=1e-2)
     
     # Training Logging Interval
     parser.add_argument('--log_interval', type=int, dest='log_interval', default=1)
-    
+
     # Pre-defined Options
-    parser.add_argument('--alpha', type=float, dest='alpha', default=1000)
-    parser.add_argument('--model', type=str, dest='model', default="RFN-128")
+    parser.add_argument('--shifttype', type=float, dest='shifttype', default='shifted')
+    parser.add_argument('--losstype', type=float, dest='losstype', default='triplet')
+    parser.add_argument('--alpha', type=float, dest='alpha', default=50)
+    parser.add_argument('--nnalpha', type=float, dest='nnalpha', default=20)
+    parser.add_argument('--model', type=str, dest='model', default="DeepCLAKNet")
     parser.add_argument('--shifted_size', type=int, dest='shifted_size', default=3)
+    parser.add_argument('--dilation_size', type=int, dest="dilation", default=3)
+    parser.add_argument('--subpatch_size', type=int, dest="subsize", default=4)
 
     # fine-tuning
-    parser.add_argument('--start_ckpt', type=str, dest='start_ckpt', default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/FKV1_a10s3mCLAKNet_2022-03-11-00-06-52/ckpt_epoch_1240.pth")
+    parser.add_argument('--start_ckpt', type=str, dest='start_ckpt', default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/FKV1(3-2)SUBS_l0d3sub4a20s3mDeepCLAKNet_2022-03-24-23-56-48/ckpt_epoch_300.pth")
     return parser
 
 def main():
     parser = build_parser()
     args = parser.parse_args()
 
-    this_datetime = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    this_datetime = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
     args.checkpoint_dir = os.path.join(
         args.checkpoint_dir,
-        "{}_a{}s{}m{}_{}".format(
-            args.db_prefix, 
-            int(args.alpha),
-            int(args.shifted_size),
+        "{}_m{}st{}l{}lr{}subd{}subs{}a{}nna{}s{}_{}".format(
+            args.db_prefix,
             args.model,
+            args.shifttype,
+            args.losstype,
+            float(args.learning_rate),
+            int(args.dilation),
+            int(args.subsize),
+            int(args.alpha),
+            int(args.nnalpha),
+            int(args.shifted_size),
             this_datetime
         )
     )
 
     args.logdir = os.path.join(
         args.logdir,
-        "{}_a{}s{}m{}_{}".format(
+        "{}_m{}st{}l{}lr{}subd{}subs{}a{}nna{}s{}_{}".format(
             args.db_prefix,
-            int(args.alpha),
-            int(args.shifted_size),
             args.model,
+            args.shifttype,
+            args.losstype,
+            float(args.learning_rate),
+            int(args.dilation),
+            int(args.subsize),
+            int(args.alpha),
+            int(args.nnalpha),
+            int(args.shifted_size),
             this_datetime
         )
 
@@ -84,7 +102,11 @@ def main():
 
     writer = SummaryWriter(log_dir=args.logdir)
     model_ = Model(args, writer=writer)
-    model_.train(args)
+    if args.losstype == "triplet":
+        model_.triplet_train(args)
+    else:
+        model_.quadruplet_train(args)
+
 
 if __name__ == "__main__":
     main()

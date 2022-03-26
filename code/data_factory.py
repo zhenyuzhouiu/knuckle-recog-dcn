@@ -18,10 +18,12 @@ from PIL import Image
 import numpy as np
 from torch.utils.data import Dataset
 
+
 def load_image(path, options='RGB'):
     assert(options in ["RGB", "L"])
     gray_image = np.array(Image.open(path).convert(options).resize((128, 128)), dtype=np.float32)
     return gray_image/255.
+
 
 def randpick_list(src, list_except=None):
     if not list_except:
@@ -32,13 +34,15 @@ def randpick_list(src, list_except=None):
             src_cp.remove(exc)
         return src_cp[np.random.randint(len(src_cp))]
 
+
 class Factory(Dataset):
-    def __init__(self, data_path, transform=None, valid_ext=['.jpg', '.bmp', '.png'], train=True):
+    def __init__(self, data_path, transform=None, valid_ext=['.jpg', '.bmp', '.png'], train=True, losstype="triplet"):
         self.ext = valid_ext
         self.transform = transform
         self._has_ext = lambda f: True if [e for e in self.ext if e in f] else False
         self.folder = data_path
         self.train = train
+        self.losstype = losstype
 
         if not exists(self.folder):
             raise RuntimeError('Dataset not found: {}'.format(self.folder))
@@ -51,7 +55,10 @@ class Factory(Dataset):
 
     def __getitem__(self, index):
         if self.train:
-            return self._get_trainitems(index)
+            if self.losstype == "triplet":
+                return self._triplet_trainitems(index)
+            else:
+                return self._quadruplet_trainitems(index)
         else:
             return self._get_testitems(index)
 
@@ -75,8 +82,35 @@ class Factory(Dataset):
             self.fdict[sf] = inames
             if self.min_subj > len(inames):
                 self.min_subj = len(inames)
-    
-    def _get_trainitems(self, index):
+
+    def _quadruplet_trainitems(self, index):
+        # Per index, per subject
+        # Negative samples 5 times than positive
+
+        selected_folder = self.subfolder_names[index]
+        anchor = randpick_list(self.fdict[selected_folder])
+        positive = randpick_list(self.fdict[selected_folder], [anchor])
+
+        img = []
+        # options = 'L' just convert image to gray image
+        img.append(load_image(join(self.folder, selected_folder, anchor), options='RGB'))
+        img.append(load_image(join(self.folder, selected_folder, positive), options='RGB'))
+
+        negative_folder = randpick_list(self.subfolder_names, [selected_folder])
+        for i in self.fdict[negative_folder]:
+            img.append(load_image(join(self.folder, negative_folder, i), options='RGB'))
+
+        negative_negative = randpick_list(self.subfolder_names, [selected_folder, negative_folder])
+        for i in self.fdict[negative_negative]:
+            img.append(load_image(join(self.folder, negative_negative, i), options='RGB'))
+
+        img = np.concatenate(img, axis=-1)
+        junk = np.array([0])
+        if self.transform is not None:
+            img = self.transform(img)
+        return img, junk
+
+    def _triplet_trainitems(self, index):
         # Per index, per subject
         # Negative samples 5 times than positive
 
@@ -90,12 +124,13 @@ class Factory(Dataset):
         # img.append(np.expand_dims(load_image(join(self.folder, selected_folder, anchor), options='RGB'), -1))
         img.append(load_image(join(self.folder, selected_folder, anchor), options='RGB'))
         img.append(load_image(join(self.folder, selected_folder, positive), options='RGB'))
-        # img.append(load_image(join(self.folder, selected_folder, anchor), options='RGB'))
+
         for i in range(10):
             negative_folder = randpick_list(self.subfolder_names, [selected_folder])
             negative = randpick_list(self.fdict[negative_folder])
             # img.append(np.expand_dims(load_image(join(self.folder, negative_folder, negative), options='RGB'), -1))
             img.append(load_image(join(self.folder, negative_folder, negative), options='RGB'))
+
         img = np.concatenate(img, axis=-1)
         junk = np.array([0])
         if self.transform is not None:

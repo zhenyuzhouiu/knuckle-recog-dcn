@@ -11,42 +11,39 @@ import argparse
 
 from plotroc_basic import *
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--src_npy', type=str, dest='src_npy', default='/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/RFN-128/protocol3.npy')
-parser.add_argument('--dest', type=str, dest='dest', default='/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/fkv1(3-2)/protocol3_roc.pdf')
-parser.add_argument('--label', type=str, dest='label', default='RFN-128')
 
-args = parser.parse_args()
+src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/fkv3subs/deepclaknet/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/3D/dclaknet/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/3D/rfn/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/3Dsubs/deepclaknet-d3-s16/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/3Dsubs/withaploss/deepclaknet-d3-s8/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/hd(1-4)subs/deepclaknet-d3-s16/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/hd(1-4)subs/deepclaknet-d3-s16/protocol3.npy']
 
-if args.dest == '':
-    args.dest = args.src_npy[:args.src_npy.find('.npy')] + "_roc.pdf"
-
-if args.label == '':
-    args.label = args.src_npy
-
-
-src_npy = ['/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/fkv1(3-2)/claknet/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/fkv1(3-2)/dclaknet/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/fkv1(3-2)/ctnet/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/fkv1(3-2)/rfn/protocol3.npy']
-label = ['CLAKNet',
+label = ['DeepCLAKNet',
          'DCLAKNet',
-         'CTNet',
-         'RFN-128']
+         'RFN',
+         'DeepCLAKNet-SUBS',
+         'DeepCLAKNet-SUBS-AP',
+         'DeepCLAKNet-SUBS',
+         'DeepCLAKNet-SUBS']
 
 color = ['#DC143C',
          '#0000FF',
          '#00FF00',
-         '#FFA500']
-dst = '/home/zhenyuzhou/Desktop/Dissertataion/Finger-Knuckle/knuckle-recog-dcn/code/output/RFN-128-1-4/protocol3_roc.pdf'
+         '#FFA500',
+         "#000000",
+         "#ffff00",
+         "#00ffff"]
+dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/fkv3subs/deepclaknet/protocol3_roc.pdf'
 
-for i in range(4):
+for i in range(1):
     data = np.load(src_npy[i], allow_pickle=True)[()]
     g_scores = np.array(data['g_scores'])
     i_scores = np.array(data['i_scores'])
 
-    print ('[*] Source file: {}'.format(args.src_npy))
-    print ('[*] Target output file: {}'.format(args.dest))
+    print ('[*] Source file: {}'.format(src_npy[i]))
+    print ('[*] Target output file: {}'.format(dst))
     print ("[*] #Genuine: {}\n[*] #Imposter: {}".format(len(g_scores), len(i_scores)))
 
     x, y = calc_coordinates(g_scores, i_scores)
@@ -82,5 +79,5 @@ for i in range(4):
     plt.xticks(np.array([-4 , -2, 0]), ['$10^{-4}$', '$10^{-2}$', '$10^{0}$'], fontsize=16)
     plt.yticks(np.array([0, 0.2, 0.4, 0.6, 0.8, 1]), fontsize=16)
 
-if args.dest:
-    plt.savefig(args.dest, bbox_inches='tight')
+if dst:
+    plt.savefig(dst, bbox_inches='tight')
