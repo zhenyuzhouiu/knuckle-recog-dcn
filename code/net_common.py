@@ -44,21 +44,16 @@ class SubShiftedLoss(torch.nn.Module):
     def forward(self, fm1, fm2):
         # C * H * W
         bs, _, h, w = fm1.size()
-        if w < self.dilation or h < self.dilation:
-            # % get reminder
-            w_dilation = self.dilation % w
-            h_dilation = self.dilation % h
-            if w_dilation < h_dilation:
-                self.dilation = w_dilation
-            else:
-                self.dilation = h_dilation
 
-        if self.subsize > w or self.subsize > h:
-            if w > h:
-                self.subsize = h
-            else:
-                self.subsize = w
+        dilation_list = [h, w, self.dilation]
+        # sort() function doesn't have return value
+        dilation_list.sort()
+        self.dilation = dilation_list[0]
+        subsize_list = [h, w, self.subsize]
+        subsize_list.sort()
+        self.subsize = subsize_list[0]
 
+        # when the shift size: dilation is equal to 0
         min_dist = torch.ones(bs).cuda() * sys.float_info.max
         if isinstance(fm1, torch.autograd.Variable):
             min_dist = Variable(min_dist, requires_grad=False)
@@ -68,14 +63,13 @@ class SubShiftedLoss(torch.nn.Module):
             min_dist, _ = torch.min(torch.stack([min_dist, dist]), 0)
             return min_dist
 
+        # when the shift size: dilation is not equal to 0
         min_dist = torch.zeros(bs).cuda()
         if isinstance(fm1, torch.autograd.Variable):
             min_dist = Variable(min_dist, requires_grad=False)
 
-        p_fm2 = F.pad(fm2, pad=[self.dilation, self.dilation, self.dilation, self.dilation], mode='replicate')
-
-        for sub_x in range(0, 32, self.subsize):
-            for sub_y in range(0, 32, self.subsize):
+        for sub_x in range(0, fm1.size(-1), self.subsize):
+            for sub_y in range(0, fm1.size(-2), self.subsize):
                 ref1 = fm1[:, :, sub_y:sub_y + self.subsize, sub_x:sub_x + self.subsize]
 
                 sub_min_dist = torch.ones(bs).cuda() * sys.float_info.max
@@ -84,7 +78,28 @@ class SubShiftedLoss(torch.nn.Module):
 
                 for dw in range(-self.dilation, self.dilation + 1):
                     for dh in range(-self.dilation, self.dilation + 1):
-                        ref2 = p_fm2[:, :, sub_y+self.dilation + dh:sub_y+self.dilation + dh + self.subsize, sub_x+self.dilation + dw:sub_x+self.dilation + dw + self.subsize]
+                        if sub_y+dh < 0:
+                            if sub_x + dw < 0:
+                                ref2 = fm2[:, :, 0:self.subsize, 0:self.subsize]
+                            elif sub_x + dw + self.subsize > w:
+                                ref2 = fm2[:, :, 0:self.subsize, fm2.size(-1)-self.subsize:fm2.size(-1)]
+                            else:
+                                ref2 = fm2[:, :, sub_y + dh:sub_y + self.subsize + dh, sub_x + dw:sub_x + self.subsize + dw]
+                        elif sub_y+dh+self.subsize > h:
+                            if sub_x + dw < 0:
+                                ref2 = fm2[:, :, fm2.size(-2)-self.subsize:fm2.size(-2), 0:self.subsize]
+                            elif sub_x + dw + self.subsize > w:
+                                ref2 = fm2[:, :, fm2.size(-2)-self.subsize:fm2.size(-2), fm1.size(-1)-self.subsize:fm1.size(-1)]
+                            else:
+                                ref2 = fm2[:, :, fm2.size(-2)-self.subsize:fm2.size(-2), sub_x + dw:sub_x + self.subsize + dw]
+                        else:
+                            if sub_x + dw < 0:
+                                ref2 = fm2[:, :, sub_y+dh:sub_y+self.subsize+dh, 0:self.subsize]
+                            elif sub_x + dw + self.subsize > w:
+                                ref2 = fm2[:, :, sub_y + dh:sub_y + self.subsize + dh, fm1.size(-1)-self.subsize:fm1.size(-1)]
+                            else:
+                                ref2 = fm2[:, :, sub_y + dh:sub_y + self.subsize + dh, sub_x + dw:sub_x + self.subsize + dw]
+
                         sub_dist = self.mse_loss(ref1, ref2).cuda()
                         sub_min_dist, _ = torch.min(torch.stack([sub_min_dist.squeeze(), sub_dist.squeeze()]), 0)
 
