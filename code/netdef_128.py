@@ -421,7 +421,6 @@ class CLAKNet(torch.nn.Module):
         return x
 
 
-
 class DeepCLAKNet(torch.nn.Module):
     def __init__(self):
         super(DeepCLAKNet, self).__init__()
@@ -477,6 +476,78 @@ class DeepCLAKNet(torch.nn.Module):
         return out
 
 
+class MultiCLAKNet(torch.nn.Module):
+    def __init__(self):
+        super(MultiCLAKNet, self).__init__()
+        # output feature map 32x128x128
+        self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1)
+        self.bn1 = torch.nn.BatchNorm2d(num_features=32)
+        self.lak1 = LKA(dim=32)
+
+        # output feature map 64x64x64
+        self.conv2 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.bn2 = torch.nn.BatchNorm2d(num_features=64)
+        self.conv3 = torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5, stride=2, padding=2)
+        self.bn3 = torch.nn.BatchNorm2d(num_features=64)
+        self.lak2 = LKA(dim=64)
+
+        # output feature map 128x32x32
+        self.conv4 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1)
+        self.bn4 = torch.nn.BatchNorm2d(num_features=128)
+        self.conv5 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=5, stride=2, padding=2)
+        self.bn5 = torch.nn.BatchNorm2d(num_features=128)
+        self.lak3 = LKA(dim=128)
+
+        # output feature map 128x16x16
+        self.conv6 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1)
+        self.bn6 = torch.nn.BatchNorm2d(num_features=128)
+        self.conv7 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=5, stride=2, padding=2)
+        self.bn7 = torch.nn.BatchNorm2d(num_features=128)
+
+
+        # concat all feature map
+        # 128-64
+        self.pool1 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+
+        # 64-32
+        self.pool2 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+
+        # 16-32
+        self.conv10 = torch.nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=3,
+                                               stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn10 = torch.nn.BatchNorm2d(num_features=128)
+
+        # input output feature 1x32x32
+        self.conv11 = torch.nn.Conv2d(in_channels=352, out_channels=256, kernel_size=3, stride=1, padding=1)
+        self.bn11 = torch.nn.BatchNorm2d(num_features=256)
+        self.conv12 = torch.nn.Conv2d(in_channels=256, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.bn12 = torch.nn.BatchNorm2d(num_features=64)
+        self.conv13 = torch.nn.Conv2d(in_channels=64, out_channels=1, kernel_size=3, stride=1, padding=1)
+
+    def forward(self, x):
+        x = F.relu(self.bn1(self.conv1(x)))
+        x128 = self.lak1(x)
+
+        x = F.relu(self.bn2(self.conv2(x128)))
+        x = F.relu(self.bn3(self.conv3(x)))
+        x64 = self.lak2(x)
+
+        x = F.relu(self.bn4(self.conv4(x64)))
+        x = F.relu(self.bn5(self.conv5(x)))
+        x32 = self.lak3(x)
+
+        x = F.relu(self.bn6(self.conv6(x32)))
+        x16 = F.relu(self.bn7(self.conv7(x)))
+
+        x64 = torch.cat([x64, self.pool1(x128)], dim=1)
+        x32 = torch.cat([x32, self.pool2(x64)], dim=1)
+        x32 = torch.cat([x32, F.relu(self.bn10(self.conv10(x16)))], dim=1)
+
+        out = F.relu(self.bn11(self.conv11(x32)))
+        out = F.relu(self.bn12(self.conv12(out)))
+        out = F.relu(self.conv13(out))
+
+        return out
 
 
 class DConvAttentionCorr(torch.nn.Module):

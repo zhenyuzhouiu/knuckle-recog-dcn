@@ -84,7 +84,7 @@ class SubShiftedLoss(torch.nn.Module):
                             elif sub_x + dw + self.subsize > w:
                                 ref2 = fm2[:, :, 0:self.subsize, fm2.size(-1)-self.subsize:fm2.size(-1)]
                             else:
-                                ref2 = fm2[:, :, sub_y + dh:sub_y + self.subsize + dh, sub_x + dw:sub_x + self.subsize + dw]
+                                ref2 = fm2[:, :, 0:self.subsize, sub_x + dw:sub_x + self.subsize + dw]
                         elif sub_y+dh+self.subsize > h:
                             if sub_x + dw < 0:
                                 ref2 = fm2[:, :, fm2.size(-2)-self.subsize:fm2.size(-2), 0:self.subsize]

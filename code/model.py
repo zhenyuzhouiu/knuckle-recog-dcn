@@ -80,6 +80,8 @@ class Model(object):
                     else:
                         if args.model == "DeepCLAKNet":
                             inference = netdef_128.DeepCLAKNet()
+                        elif args.model == "MultiCLAKNet":
+                            inference = netdef_128.MultiCLAKNet()
 
         examples = iter(self.train_loader)
         example_data, example_target = examples.next()
