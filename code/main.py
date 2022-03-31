@@ -12,7 +12,7 @@ from model import Model
 from torch.utils.tensorboard import SummaryWriter
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 
 def build_parser():
@@ -31,7 +31,7 @@ def build_parser():
     parser.add_argument('--train_path', type=str, dest='train_path', default='/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/THU-FVFDT/Segment_FDT3_Train/major')
 
     # Training Strategy
-    parser.add_argument('--batch_size', type=int, dest='batch_size', default=8)
+    parser.add_argument('--batch_size', type=int, dest='batch_size', default=6)
     parser.add_argument('--epochs', type=int, dest='epochs', default=3000)
     parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=1e-3)
     
@@ -43,13 +43,13 @@ def build_parser():
     parser.add_argument('--losstype', type=str, dest='losstype', default='quadruplet')
     parser.add_argument('--alpha', type=float, dest='alpha', default=100)
     parser.add_argument('--nnalpha', type=float, dest='nnalpha', default=40)
-    parser.add_argument('--model', type=str, dest='model', default="MultiCLAKNet")
+    parser.add_argument('--model', type=str, dest='model', default="DeepCLAKNet")
     parser.add_argument('--shifted_size', type=int, dest='shifted_size', default=3)
     parser.add_argument('--dilation_size', type=int, dest="dilation", default=3)
     parser.add_argument('--subpatch_size', type=int, dest="subsize", default=8)
 
     # fine-tuning
-    parser.add_argument('--start_ckpt', type=str, dest='start_ckpt', default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/fkv1_mMultiCLAKNet-stsubshifted-lossquadruplet-lr0.01-subd3-subs8-a50-nna20-s3_2022-03-30-14-35/ckpt_epoch_460.pth")
+    parser.add_argument('--start_ckpt', type=str, dest='start_ckpt', default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/FKV1(3-2)SUBS_l0d3sub4a20s3mDeepCLAKNet_2022-03-24-23-56-48/ckpt_epoch_300.pth")
     return parser
 
 def main():
