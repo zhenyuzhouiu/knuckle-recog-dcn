@@ -26,8 +26,10 @@ class Model(object):
 
         if args.shifttype == "shifted":
             self.inference, self.loss = self._shift_model(args)
-        else:
+        elif args.shifttype == "subshifted":
             self.inference, self.loss = self._subshift_model(args)
+        else:
+            self.inference, self.loss = self._rsshift_model(args)
 
         self.optimizer = torch.optim.Adagrad(self.inference.parameters(), args.learning_rate)
 
@@ -93,6 +95,39 @@ class Model(object):
         inference.cuda()
         return inference, loss
 
+    def _rsshift_model(self, args):
+        if args.model == "RFN-32":
+            inference = netdef_32.ResidualFeatureNet()
+        else:
+            if args.model == "RFN-128":
+                inference = netdef_128.ResidualFeatureNet()
+            elif args.model == "TNet_16":
+                inference = netdef_128.TNet_16()
+            else:
+                if args.model == "TNet_8":
+                    inference = netdef_128.TNet_8()
+                elif args.model == "CTNet":
+                    inference = netdef_128.CTNet()
+                else:
+                    if args.model == "DCLAKNet":
+                        inference = netdef_128.DCLAKNet()
+                    elif args.model == "CLAKNet":
+                        inference = netdef_128.CLAKNet()
+                    else:
+                        if args.model == "DeepCLAKNet":
+                            inference = netdef_128.DeepCLAKNet()
+                        elif args.model == "MultiCLAKNet":
+                            inference = netdef_128.MultiCLAKNet()
+
+        examples = iter(self.train_loader)
+        example_data, example_target = examples.next()
+        data = example_data.view(-1, 3, example_data.size(2), example_data.size(3))
+        self.writer.add_graph(inference, data[0,:,:,:].unsqueeze(0))
+
+        loss = net_common.RIPShiftedLoss(args.dilation, args.subsize, args.angle)
+        util.Logging("Successfully building rotate-sub-shifted triplet loss")
+        inference.cuda()
+        return inference, loss
 
     def _shift_model(self, args):
         if args.model == "RFN-32":
