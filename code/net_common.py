@@ -31,6 +31,23 @@ class ResidualBlock(torch.nn.Module):
         return out
 
 
+class DeconvResBlock(torch.nn.Module):
+    def __init__(self, channels):
+        super(DeconvResBlock, self).__init__()
+        self.conv1 = DeformableConv2d2v(channels, channels, kernel_size=3, stride=1)
+        self.in1 = torch.nn.InstanceNorm2d(channels, affine=True)
+        self.conv2 = DeformableConv2d2v(channels, channels, kernel_size=3, stride=1)
+        self.in2 = torch.nn.InstanceNorm2d(channels, affine=True)
+        self.relu = torch.nn.ReLU()
+
+    def forward(self, x):
+        residual = x
+        out = self.relu(self.in1(self.conv1(x)))
+        out = self.in2(self.conv2(out))
+        out = out + residual
+        return out
+
+
 class RIPShiftedLoss(torch.nn.Module):
     def __init__(self, dilation, subsize, angle, topk=-1):
         super(RIPShiftedLoss, self).__init__()
@@ -132,10 +149,12 @@ class RIPShiftedLoss(torch.nn.Module):
                     ref2 = torch.squeeze(ref2, dim=1)
                     ref2 = ref2.cpu().detach().numpy()
                     ref2 = ref2.transpose(1,2,0)
-                    r_ref2 = np.zeros(ref2.shape)
-                    for n_g in range(s_bs):
-                        r_ref2_n = cv2.warpAffine(ref2[:, :, n_g], M=rotate_matrix, dsize=(s_w, s_h))
-                        r_ref2[:, :, n_g] = r_ref2_n
+                    # r_ref2 = np.zeros(ref2.shape)
+                    # for n_g in range(s_bs):
+                    #     r_ref2_n = cv2.warpAffine(ref2[:, :, n_g], M=rotate_matrix, dsize=(s_w, s_h))
+                    #     r_ref2[:, :, n_g] = r_ref2_n
+
+                    r_ref2 = cv2.warpAffine(ref2, M=rotate_matrix, dsize=(s_w, s_h))
 
                     r_ref2 = torch.from_numpy(r_ref2).cuda()
                     r_ref2 = r_ref2.permute(2, 0, 1).unsqueeze(1)
@@ -162,7 +181,6 @@ class RIPShiftedLoss(torch.nn.Module):
                 min_dist[i] = torch.sum(sorted_d[0:self.topk])
             else:
                 min_dist[i] = torch.sum(dist)
-
 
         return min_dist.squeeze()
 
@@ -257,13 +275,14 @@ class RANDIPShiftedLoss(torch.nn.Module):
                             mask = torch.ones([s_w, s_h])
                             # ref2 = fm2[:, :, sub_y:sub_y + self.subsize, sub_x:sub_x + self.subsize]
                             rotate_matrix = cv2.getRotationMatrix2D(center=[s_w / 2, s_h / 2], angle=a, scale=1)
-                            ref2 = torch.squeeze(ref2, dim=1)
-                            ref2 = ref2.cpu().detach().numpy()
-                            ref2 = ref2.transpose(1, 2, 0)
-                            r_ref2 = np.zeros(ref2.shape)
-                            for n_g in range(s_bs):
-                                r_ref2_n = cv2.warpAffine(ref2[:, :, n_g], M=rotate_matrix, dsize=(s_w, s_h))
-                                r_ref2[:, :, n_g] = r_ref2_n
+                            a_ref2 = torch.squeeze(ref2, dim=1)
+                            a_ref2 = a_ref2.cpu().detach().numpy()
+                            a_ref2 = a_ref2.transpose(1, 2, 0)
+                            # r_ref2 = np.zeros(a_ref2.shape)
+                            # for n_g in range(s_bs):
+                            #     r_ref2_n = cv2.warpAffine(a_ref2[:, :, n_g], M=rotate_matrix, dsize=(s_w, s_h))
+                            #     r_ref2[:, :, n_g] = r_ref2_n
+                            r_ref2 = cv2.warpAffine(a_ref2, M=rotate_matrix, dsize=(s_w, s_h))
 
                             r_ref2 = torch.from_numpy(r_ref2).cuda()
                             r_ref2 = r_ref2.permute(2, 0, 1).unsqueeze(1)
@@ -293,10 +312,11 @@ class RANDIPShiftedLoss(torch.nn.Module):
 
 
 class SubShiftedLoss(torch.nn.Module):
-    def __init__(self, dilation, subsize):
+    def __init__(self, dilation, subsize, topk = -1):
         super(SubShiftedLoss, self).__init__()
         self.dilation = dilation
         self.subsize = subsize
+        self.topk = topk
 
     def mse_loss(self, src, target):
         if isinstance(src, torch.autograd.Variable):
@@ -369,11 +389,6 @@ class SubShiftedLoss(torch.nn.Module):
                 min_dist = min_dist + sub_min_dist
 
         return min_dist.squeeze()
-
-
-class LearnPatchShiftedLoss(torch.nn.Module):
-    def __init__(self):
-        super(LearnPatchShiftedLoss, self).__init__()
 
 
 class ShiftedLoss(torch.nn.Module):
@@ -480,7 +495,7 @@ class UpsampleConvLayer(torch.nn.Module):
 
 
 class DeformableConv2d1v(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=0, bias=False):
         super(DeformableConv2d1v, self).__init__()
 
         self.stride = stride if type(stride) == tuple else (stride, stride)
@@ -533,8 +548,8 @@ class DeformableConv2d2v(torch.nn.Module):
                                            padding=self.padding,
                                            bias=True)
 
-        # torch.nn.init.constant_(self.offset_conv.weight, 0.)
-        # torch.nn.init.constant_(self.offset_conv.bias, 0.)
+        torch.nn.init.constant_(self.offset_conv.weight, 0.)
+        torch.nn.init.constant_(self.offset_conv.bias, 0.)
 
         self.modulator_conv = torch.nn.Conv2d(in_channels,
                                               1 * kernel_size[0] * kernel_size[1],
@@ -543,8 +558,8 @@ class DeformableConv2d2v(torch.nn.Module):
                                               padding=self.padding,
                                               bias=True)
 
-        # torch.nn.init.constant_(self.modulator_conv.weight, 0.)
-        # torch.nn.init.constant_(self.modulator_conv.bias, 0.)
+        torch.nn.init.constant_(self.modulator_conv.weight, 0.)
+        torch.nn.init.constant_(self.modulator_conv.bias, 0.)
 
         self.regular_conv = torch.nn.Conv2d(in_channels=in_channels,
                                             out_channels=out_channels,

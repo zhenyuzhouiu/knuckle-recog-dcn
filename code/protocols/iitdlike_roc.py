@@ -168,6 +168,7 @@ inference.load_state_dict(torch.load(args.model_path))
 # Loss = net_common.ShiftedLoss(args.shift_size, args.shift_size)
 # Loss = net_common.SubShiftedLoss(args.dilation, args.subsize)
 Loss = net_common.RIPShiftedLoss(args.dilation, args.subsize, args.angle, topk=14)
+Loss = net_common.RANDIPShiftedLoss(dilation=args.dilation, subsize=args.subsize, angle=args.angle, topk=14)
 def _loss(feats1, feats2):
     loss = Loss(feats1, feats2)
     if isinstance(loss, torch.autograd.Variable):

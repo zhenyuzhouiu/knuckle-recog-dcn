@@ -14,7 +14,7 @@ import net_common
 from functools import partial
 from collections import OrderedDict
 import math
-from net_common import ConvLayer, ResidualBlock, DeformableConv2d1v, DeformableConv2d2v, LKA
+from net_common import ConvLayer, ResidualBlock, DeformableConv2d1v, DeformableConv2d2v, LKA, DeconvResBlock
 
 
 def _init_vit_weights(m):
@@ -63,38 +63,37 @@ class ResidualFeatureNet(torch.nn.Module):
         return conv5
 
 
-
-class DRFNet(torch.nn.Module):
+class DeConvRFNet(torch.nn.Module):
     def __init__(self):
-        super(DRFNet, self).__init__()
+        super(DeConvRFNet, self).__init__()
         # Initial convolution layers
-        self.conv1 = DeformableConv2d2v(1, 32, kernel_size=5, stride=2)
+        self.conv1 = DeformableConv2d2v(3, 32, kernel_size=5, stride=2)
+        self.bn1 = torch.nn.BatchNorm2d(num_features=32)
         self.conv2 = DeformableConv2d2v(32, 64, kernel_size=3, stride=2)
+        self.bn2 = torch.nn.BatchNorm2d(num_features=64)
         self.conv3 = DeformableConv2d2v(64, 128, kernel_size=3, stride=1)
-        self.resid1 = ResidualBlock(128)
-        self.resid2 = ResidualBlock(128)
-        self.resid3 = ResidualBlock(128)
-        self.resid4 = ResidualBlock(128)
+        self.bn3 = torch.nn.BatchNorm2d(num_features=128)
+        self.resid1 = DeconvResBlock(128)
+        self.resid2 = DeconvResBlock(128)
+        self.resid3 = DeconvResBlock(128)
+        self.resid4 = DeconvResBlock(128)
         self.conv4 = DeformableConv2d2v(128, 64, kernel_size=3, stride=1)
-        self.conv5 = DeformableConv2d2v(64, 1, kernel_size=1, stride=1)
+        self.bn4 = torch.nn.BatchNorm2d(num_features=64)
+        self.conv5 = ConvLayer(64, 1, kernel_size=1, stride=1)
+        self.bn5 = torch.nn.BatchNorm2d(num_features=1)
 
-    def forward(self, X):
-        conv1 = F.relu(self.conv1(X))
-        conv2 = F.relu(self.conv2(conv1))
-        conv3 = F.relu(self.conv3(conv2))
+    def forward(self, x):
+        conv1 = F.relu(self.bn1(self.conv1(x)))
+        conv2 = F.relu(self.bn2(self.conv2(conv1)))
+        conv3 = F.relu(self.bn3(self.conv3(conv2)))
         resid1 = self.resid1(conv3)
-        resid2 = self.resid2(resid1)
-        resid3 = self.resid3(resid2)
-        resid4 = self.resid4(resid3)
-        conv4 = F.relu(self.conv4(resid4))
-        conv5 = F.relu(self.conv5(conv4))
+        resid2 = self.resid1(resid1)
+        resid3 = self.resid1(resid2)
+        resid4 = self.resid1(resid3)
+        conv4 = F.relu(self.bn4(self.conv4(resid4)))
+        conv5 = F.relu(self.bn5(self.conv5(conv4)))
+
         return conv5
-
-
-class CTNet(torch.nn.Module):
-    def __init__(self):
-        super(CTNet, self).__init__()
-        self.conv1 = ConvLayer(3, )
 
 
 class TNet_16(torch.nn.Module):
@@ -272,9 +271,8 @@ class CTNet(torch.nn.Module):
                              norm_layer=norm_layer, act_layer=act_layer)
             for i in range(1)
         ])
-        self.norm1 =norm_layer(64)
+        self.norm1 = norm_layer(64)
         self.conv3 = torch.nn.Conv2d(64, 1, 1, 1)
-
 
         torch.nn.init.trunc_normal_(self.pos_embed1, std=0.02)
 
@@ -293,6 +291,7 @@ class CTNet(torch.nn.Module):
         x = x.transpose(1, 2).view(B, C, 8, 8)
         x = self.conv3(x)
         return x
+
 
 class OldCTNet(torch.nn.Module):
     def __init__(self, norm_layer=None, act_layer=None):
@@ -314,7 +313,7 @@ class OldCTNet(torch.nn.Module):
                              norm_layer=norm_layer, act_layer=act_layer)
             for i in range(1)
         ])
-        self.norm1 =norm_layer(256)
+        self.norm1 = norm_layer(256)
 
         self.conv = torch.nn.Conv2d(256, 1, 1, 1)
 
@@ -361,7 +360,7 @@ class OldCTNet(torch.nn.Module):
         x = self.norm2(x)
 
         B, HW, C = x.shape
-        x = x.transpose(1,2).view(B, C, 8, 8)
+        x = x.transpose(1, 2).view(B, C, 8, 8)
 
         # x = F.relu(self.conv4(x))
         return y
@@ -372,7 +371,7 @@ class DCLAKNet(torch.nn.Module):
         super(DCLAKNet, self).__init__()
         self.conv1 = DeformableConv2d1v(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1)
         self.conv2 = DeformableConv2d1v(in_channels=64, out_channels=128, kernel_size=5, stride=2, padding=2)
-        self.lka1= LKA(dim=128)
+        self.lka1 = LKA(dim=128)
         self.conv3 = DeformableConv2d1v(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1)
         self.conv4 = DeformableConv2d1v(in_channels=128, out_channels=128, kernel_size=5, stride=2, padding=2)
         self.lka2 = LKA(dim=128)
@@ -399,7 +398,7 @@ class CLAKNet(torch.nn.Module):
         super(CLAKNet, self).__init__()
         self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1)
         self.conv2 = torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=5, stride=2, padding=2)
-        self.lka1= LKA(dim=128)
+        self.lka1 = LKA(dim=128)
         self.conv3 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1)
         self.conv4 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=5, stride=2, padding=2)
         self.lka2 = LKA(dim=128)
@@ -504,7 +503,6 @@ class MultiCLAKNet(torch.nn.Module):
         self.conv7 = torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=5, stride=2, padding=2)
         self.bn7 = torch.nn.BatchNorm2d(num_features=128)
 
-
         # concat all feature map
         # 128-64
         self.pool1 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
@@ -550,17 +548,35 @@ class MultiCLAKNet(torch.nn.Module):
         return out
 
 
-class DConvAttentionCorr(torch.nn.Module):
+class DRFNSANet(torch.nn.Module):
     def __init__(self):
-        super(DConvAttentionCorr, self).__init__()
-        self.dconv1 = net_common.DeformableConv2d2v(in_channels=3, out_channels=64)
-        self.dconv2 = net_common.DeformableConv2d2v(in_channels=64, out_channels=128)
-
-
-class FKNet(torch.nn.Module):
-    def __init__(self):
-        super(FKNet, self).__init__()
-        self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=64, kernel_size=7, stride=3)
+        super(DRFNSANet, self).__init__()
 
 
 
+class DRFNACorr(torch.nn.Module):
+    def __init__(self, patch_size=8, embed_dim = 128, drop_path_ratio = 0.2):
+        super(DRFNACorr, self).__init__()
+        self.patch_size = patch_size
+        self.embde_dim = embed_dim
+
+        self.rfn = DeConvRFNet()
+        # trainable position embedding
+        self.pos_embed = torch.nn.Parameter(torch.zeros(1, 16, self.embde_dim))
+        self.patch_embed = net_common.PatchEmbed(img_size=32, patch_size=self.patch_size, in_c=1, embed_dim=self.embde_dim)
+        self.norm_layer = torch.nn.BatchNorm2d(num_features=128)
+        self.attn = net_common.Attention(dim=128, num_heads=1, qkv_bias=True)
+        self.drop_path = net_common.DropPath(drop_path_ratio)
+
+        torch.nn.init.trunc_normal_(self.pos_embed, std=0.02)
+    def forward(self, x):
+        # x shape: -> [batch_size, channels, h, w]
+        x = self.rfn(x)
+        x = self.patch_embed(x)
+        x = x + self.pos_embed
+        # x shape: -> [batch_size, num_patches, total_embed_dim]
+        x = x + self.drop_path(self.norm_layer(self.attn(x)))
+
+        b, num_p, t_d = x.shape
+        # x.shape -> [batch_size, total_embed_dim, 4, 4]
+        x = x.transpose(1, 2).reshape(b, t_d, int(num_p**-0.5), int(num_p**-0.5))
