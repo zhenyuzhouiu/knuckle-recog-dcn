@@ -12,7 +12,7 @@ from model import Model
 from torch.utils.tensorboard import SummaryWriter
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 
 def build_parser():
@@ -23,33 +23,33 @@ def build_parser():
 
     parser.add_argument('--checkpoint_dir', type=str,
                         dest='checkpoint_dir', default='./checkpoint/')
-    parser.add_argument('--db_prefix', dest='db_prefix', default='fkv3')
+    parser.add_argument('--db_prefix', dest='db_prefix', default='fkv1')
     parser.add_argument('--checkpoint_interval', type=int, dest='checkpoint_interval',
                         default=20)
     
     # Dataset Options
-    parser.add_argument('--train_path', type=str, dest='train_path', default='/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/Database/Segmented/Session_2_128/')
+    parser.add_argument('--train_path', type=str, dest='train_path', default='/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/PolyUKnuckleV1/Segmented/GUI_Seg/major/dataset/train_set/')
 
     # Training Strategy
-    parser.add_argument('--batch_size', type=int, dest='batch_size', default=16)
+    parser.add_argument('--batch_size', type=int, dest='batch_size', default=8)
     parser.add_argument('--epochs', type=int, dest='epochs', default=3000)
     parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=1e-3)
     
     # Training Logging Interval
     parser.add_argument('--log_interval', type=int, dest='log_interval', default=1)
     # Pre-defined Options
-    parser.add_argument('--shifttype', type=str, dest='shifttype', default='randipshifted')
+    parser.add_argument('--shifttype', type=str, dest='shifttype', default='wholershifted')
     parser.add_argument('--losstype', type=str, dest='losstype', default='triplet')
-    parser.add_argument('--alpha', type=float, dest='alpha', default=20)
+    parser.add_argument('--alpha', type=float, dest='alpha', default=10)
     parser.add_argument('--nnalpha', type=float, dest='nnalpha', default=40)
-    parser.add_argument('--model', type=str, dest='model', default="DeConvRFNet")
+    parser.add_argument('--model', type=str, dest='model', default="RFN-128")
     parser.add_argument('--shifted_size', type=int, dest='shifted_size', default=3)
     parser.add_argument('--dilation_size', type=int, dest="dilation", default=3)
     parser.add_argument('--subpatch_size', type=int, dest="subsize", default=8)
-    parser.add_argument('--rotate_angle', type=int, dest="angle", default=3)
+    parser.add_argument('--rotate_angle', type=int, dest="angle", default=5)
 
     # fine-tuning
-    parser.add_argument('--start_ckpt', type=str, dest='start_ckpt', default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/fkv1_mDeConvRFNet-strandipshifted-losstriplet-lr0.001-subd3-subs8-angle3-a10-nna40-s3_2022-04-07-16-31/ckpt_epoch_300.pth")
+    parser.add_argument('--start_ckpt', type=str, dest='start_ckpt', default="")
     return parser
 
 def main():

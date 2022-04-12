@@ -217,13 +217,19 @@ class EfficientNet(nn.Module):
         super(EfficientNet, self).__init__()
 
         # kernel_size, in_channel, out_channel, exp_ratio, strides, use_SE, drop_connect_rate, repeats
+        # default_cnf = [[3, 32, 16, 1, 1, True, drop_connect_rate, 1],
+        #                [3, 16, 24, 6, 2, True, drop_connect_rate, 2],
+        #                [5, 24, 40, 6, 2, True, drop_connect_rate, 2],
+        #                [3, 40, 80, 6, 2, True, drop_connect_rate, 3],
+        #                [5, 80, 112, 6, 1, True, drop_connect_rate, 3],
+        #                [5, 112, 192, 6, 2, True, drop_connect_rate, 4],
+        #                [3, 192, 320, 6, 1, True, drop_connect_rate, 1]]
+
         default_cnf = [[3, 32, 16, 1, 1, True, drop_connect_rate, 1],
-                       [3, 16, 24, 6, 2, True, drop_connect_rate, 2],
-                       [5, 24, 40, 6, 2, True, drop_connect_rate, 2],
-                       [3, 40, 80, 6, 2, True, drop_connect_rate, 3],
-                       [5, 80, 112, 6, 1, True, drop_connect_rate, 3],
-                       [5, 112, 192, 6, 2, True, drop_connect_rate, 4],
-                       [3, 192, 320, 6, 1, True, drop_connect_rate, 1]]
+                       [3, 16, 64, 6, 1, True, drop_connect_rate, 2],
+                       [5, 64, 128, 6, 1, True, drop_connect_rate, 2],
+                       [3, 128, 128, 6, 2, True, drop_connect_rate, 3],
+                       [5, 128, 64, 6, 1, True, drop_connect_rate, 3]]
 
         def round_repeats(repeats):
             """Round number of repeats based on depth multiplier."""
@@ -278,21 +284,28 @@ class EfficientNet(nn.Module):
 
         # build top
         last_conv_input_c = inverted_residual_setting[-1].out_c
-        last_conv_output_c = adjust_channels(1280)
+        last_conv_output_c = adjust_channels(32)
         layers.update({"top": ConvBNActivation(in_planes=last_conv_input_c,
                                                out_planes=last_conv_output_c,
-                                               kernel_size=1,
+                                               kernel_size=3,
+                                               stride=1,
                                                norm_layer=norm_layer)})
+
+        layers.update({"output": ConvBNActivation(in_planes=last_conv_output_c,
+                                                  out_planes=1,
+                                                  kernel_size=3,
+                                                  stride=1,
+                                                  norm_layer=norm_layer)})
 
         self.features = nn.Sequential(layers)
         # AdaptiveAvgPool2d(1): the 1 represents the output tensor is hxw=1x1
-        self.avgpool = nn.AdaptiveAvgPool2d(1)
+        # self.avgpool = nn.AdaptiveAvgPool2d(1)
 
-        classifier = []
-        if dropout_rate > 0:
-            classifier.append(nn.Dropout(p=dropout_rate, inplace=True))
-        classifier.append(nn.Linear(last_conv_output_c, num_classes))
-        self.classifier = nn.Sequential(*classifier)
+        # classifier = []
+        # if dropout_rate > 0:
+        #     classifier.append(nn.Dropout(p=dropout_rate, inplace=True))
+        # classifier.append(nn.Linear(last_conv_output_c, num_classes))
+        # self.classifier = nn.Sequential(*classifier)
 
         # initial weights
         for m in self.modules():
@@ -309,10 +322,9 @@ class EfficientNet(nn.Module):
 
     def _forward_impl(self, x: Tensor) -> Tensor:
         x = self.features(x)
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        x = self.classifier(x)
-
+        # x = self.avgpool(x)
+        # x = torch.flatten(x, 1)
+        # x = self.classifier(x)
         return x
 
     def forward(self, x: Tensor) -> Tensor:

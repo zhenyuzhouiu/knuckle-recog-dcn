@@ -2,6 +2,7 @@ from __future__ import division
 import sys
 
 import cv2
+import numpy
 import torch
 import numpy as np
 import torchvision.ops
@@ -442,7 +443,7 @@ class WholeRotationShiftedLoss(torch.nn.Module):
         # min_dist save the maximal float value
         min_dist = torch.ones(bs, device=fm1.device) * sys.float_info.max
         if isinstance(fm1, torch.autograd.Variable):
-            min_dist = Variable(min_dist, requires_grad=False)
+            min_dist = Variable(min_dist, requires_grad=True)
 
         if self.hshift == 0 and self.vshift == 0:
             dist = self.mse_loss(fm1, fm2).to(fm1.device)
@@ -468,6 +469,8 @@ class WholeRotationShiftedLoss(torch.nn.Module):
                     n_ref2 = ref2.detach().cpu().numpy()
                     n_ref2 = n_ref2.transpose(1, 2, 0)
                     r_ref2 = cv2.warpAffine(n_ref2, M=M, dsize=[overlap_w, overlap_h])
+                    if r_ref2.ndim == 2:
+                        r_ref2 = numpy.expand_dims(r_ref2, axis=-1)
                     r_ref2 = torch.from_numpy(r_ref2).to(fm1.device)
                     r_ref2.requires_grad = True
                     r_ref2 = r_ref2.permute(2,0,1).unsqueeze(1)
@@ -475,7 +478,7 @@ class WholeRotationShiftedLoss(torch.nn.Module):
                     mask = np.ones([overlap_h, overlap_w])
                     r_mask = cv2.warpAffine(mask, M=M, dsize=[overlap_w, overlap_h])
                     r_mask = torch.from_numpy(r_mask).to(fm1.device)
-                    r_mask = r_mask.unsqueeze(0).unsqueeze(0).repeate(overlap_bs, overlap_c, 1, 1)
+                    r_mask = r_mask.unsqueeze(0).unsqueeze(0).repeat(overlap_bs, overlap_c, 1, 1)
 
                     dist = self.mse_loss(ref1, r_ref2, r_mask).to(fm1.device)
 
@@ -679,6 +682,8 @@ class DeformableConv2d2v(torch.nn.Module):
         return x
     def __int__(self):
         super(DeformableConv2d2v, self).__int__()
+
+
 
 def drop_path(x, drop_prob: float = 0., training: bool = False):
     """

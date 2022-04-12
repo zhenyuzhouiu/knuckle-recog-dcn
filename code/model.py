@@ -17,6 +17,7 @@ import json
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+import efficientnet
 
 class Model(object):
     def __init__(self, args, writer):
@@ -29,7 +30,10 @@ class Model(object):
         elif args.shifttype == "subshifted":
             self.inference, self.loss = self._subshift_model(args)
         else:
-            self.inference, self.loss = self._randipshift_model(args)
+            if args.shifttype == "wholershifted":
+                self.inference, self.loss = self._wholerandshift_model(args)
+            elif args.shifttype == "rsubshifted":
+                self.inference, self.loss = self._randipshift_model(args)
 
         self.optimizer = torch.optim.Adagrad(self.inference.parameters(), args.learning_rate)
 
@@ -61,11 +65,32 @@ class Model(object):
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] *= lr_decay
 
+
+    def _wholerandshift_model(self, args):
+        if args.model == "RFN-128":
+            inference = netdef_128.ResidualFeatureNet()
+        elif args.model == "DeConvRFNet":
+            inference = netdef_128.DeConvRFNet()
+        else:
+            inference = efficientnet.EfficientNet(width_coefficient=1.0, depth_coefficient=1.0,dropout_rate=0.2)
+
+        examples = iter(self.train_loader)
+        example_data, example_target = examples.next()
+        data = example_data.view(-1, 3, example_data.size(2), example_data.size(3))
+        self.writer.add_graph(inference, data[0,:,:,:].unsqueeze(0))
+
+        loss = net_common.WholeRotationShiftedLoss(args.shifted_size, args.shifted_size, args.angle)
+        util.Logging("Successfully building whole-rotation-sub-shifted triplet loss")
+        inference.cuda()
+        return inference, loss
+
     def _subshift_model(self, args):
         if args.model == "RFN-128":
             inference = netdef_128.ResidualFeatureNet()
-        else:
+        elif args.model == "DeConvRFNet":
             inference = netdef_128.DeConvRFNet()
+        else:
+            inference = efficientnet.EfficientNet(width_coefficient=1.0, depth_coefficient=1.0,dropout_rate=0.2)
 
         examples = iter(self.train_loader)
         example_data, example_target = examples.next()
@@ -80,8 +105,10 @@ class Model(object):
     def _randipshift_model(self, args):
         if args.model == "RFN-128":
             inference = netdef_128.ResidualFeatureNet()
-        else:
+        elif args.model == "DeConvRFNet":
             inference = netdef_128.DeConvRFNet()
+        else:
+            inference = efficientnet.EfficientNet(width_coefficient=1.0, depth_coefficient=1.0,dropout_rate=0.2)
 
         examples = iter(self.train_loader)
         example_data, example_target = examples.next()
@@ -96,8 +123,10 @@ class Model(object):
     def _shift_model(self, args):
         if args.model == "RFN-128":
             inference = netdef_128.ResidualFeatureNet()
-        else:
+        elif args.model == "DeConvRFNet":
             inference = netdef_128.DeConvRFNet()
+        else:
+            inference = efficientnet.EfficientNet(width_coefficient=1.0, depth_coefficient=1.0,dropout_rate=0.2)
 
         examples = iter(self.train_loader)
         example_data, example_target = examples.next()
