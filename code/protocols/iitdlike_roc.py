@@ -128,47 +128,31 @@ def genuine_imposter(test_path):
     return np.array(g_scores), np.array(i_scores), matt
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--test_path", type=str, default="/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/Database/Segmented/Session_1_128/", dest="test_path")
-parser.add_argument("--out_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/fkv3/rfn/protocol3.npy", dest="out_path")
+parser.add_argument("--test_path", type=str, default="/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/3Dfingerknuckle/3D Finger Knuckle Database New (20190711)/two-session/forefinger/session2/", dest="test_path")
+parser.add_argument("--out_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/FKV3/3D/protocol3.npy", dest="out_path")
 parser.add_argument("--model_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/fkv3_mRFN-128-stshifted-losstriplet-lr0.001-subd3-subs8-angle5-a100-nna40-s3_2022-04-01-22-54/ckpt_epoch_4280.pth", dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=128)
 parser.add_argument("--shift_size", type=int, dest="shift_size", default=3)
-parser.add_argument('--dilation_size', type=int, dest="dilation", default=10)
+parser.add_argument('--dilation_size', type=int, dest="dilation", default=3)
 parser.add_argument('--subpatch_size', type=int, dest="subsize", default=8)
 parser.add_argument("--rotate_angle", type=int, dest="angle", default=5)
 parser.add_argument("--save_mmat", type=bool, dest="save_mmat", default=True)
 
 args = parser.parse_args()
-if "RFN-32" in args.model_path:
-    inference = netdef_32.ResidualFeatureNet()
+if "RFN-128" in args.model_path:
+    inference = netdef_128.ResidualFeatureNet()
 else:
-    if "RFN-128" in args.model_path:
-        inference = netdef_128.ResidualFeatureNet()
-    elif "TNet_16" in args.model_path:
-        inference = netdef_128.TNet_16()
-    else:
-        if "TNet_8" in args.model_path:
-            inference = netdef_128.TNet_8()
-        elif "CTNet" in args.model_path:
-            inference = netdef_128.CTNet()
-        else:
-            if "DCLAKNet" in args.model_path:
-                inference = netdef_128.DCLAKNet()
-            elif "DeepCLAKNet" in args.model_path:
-                inference = netdef_128.DeepCLAKNet()
-            else:
-                if "MultiCLAKNet" in args.model_path:
-                    inference = netdef_128.MultiCLAKNet()
-                elif "CLAKNet" in args.model_path:
-                    inference = netdef_128.CLAKNet()
+    if "DeConvRFNet" in args.model_path:
+        inference = netdef_128.DeConvRFNet()
+
 
 
 inference.load_state_dict(torch.load(args.model_path))
 # inference = torch.jit.load("knuckle-script-polyu.pt")
-# Loss = net_common.ShiftedLoss(args.shift_size, args.shift_size)
-# Loss = net_common.SubShiftedLoss(args.dilation, args.subsize)
-Loss = net_common.RIPShiftedLoss(args.dilation, args.subsize, args.angle, topk=14)
-Loss = net_common.RANDIPShiftedLoss(dilation=args.dilation, subsize=args.subsize, angle=args.angle, topk=14)
+Loss = net_common.ShiftedLoss(args.shift_size, args.shift_size)
+# Loss = net_common.SubShiftedLoss(args.dilation, args.subsize, topk=16)
+# Loss = net_common.RIPShiftedLoss(args.dilation, args.subsize, args.angle, topk=16)
+# Loss = net_common.RANDIPShiftedLoss(dilation=args.dilation, subsize=args.subsize, angle=args.angle, topk=16)
 def _loss(feats1, feats2):
     loss = Loss(feats1, feats2)
     if isinstance(loss, torch.autograd.Variable):

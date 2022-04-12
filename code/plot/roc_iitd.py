@@ -12,32 +12,44 @@ import argparse
 from plotroc_basic import *
 
 
-src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/fkv3/deepclaknet-subs/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/fkv3/multiclaknet-subs/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/fkv3/multiclaknet-subs-angle/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/fkv3/rfn-subs/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/fkv3/rfn-subs-angle/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/fkv3/rfn/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/hd(1-4)subs/deepclaknet-d3-s16/protocol3.npy']
+src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/FKV3/HD/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/FKV3/FKV3/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/FKV3/THU/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/FKV3/3D/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-256/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP8/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP10/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP12/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP14/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP16/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN/protocol3.npy']
 
-label = ['DeepCLAKNet-Subs',
-         'MultiCLAKNet-Subs',
-         'MultiCLAKNet-Subs-Angle',
-         'RFN-Subs',
-         'RFN-Subs-Angle',
-         'RFN',
-         'DeepCLAKNet-SUBS']
+label = ['RFN-HD',
+         'RFN-FKV3',
+         'RFN-THU',
+         'RFN-3D',
+         'RFN-256-16',
+         'RFN-128-8',
+         'RFN-128-10',
+         'RFN-128-12',
+         'RFN-128-14',
+         'RFN-128-16',
+         'RFN']
 
-color = ['#DC143C',
-         '#0000FF',
-         '#00FF00',
-         '#FFA500',
-         "#000000",
-         "#ffff00",
-         "#00ffff"]
-dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/protocol3_roc.pdf'
+color = ['#000000',
+         '#000080',
+         '#008000',
+         '#008080',
+         "#c0c0c0",
+         '#00ffff',
+         '#800000',
+         '#800080',
+         '#808000',
+         '#ff00ff',
+         '#ff0000']
+dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/FKV3/protocol3_roc.pdf'
 
-for i in range(6):
+for i in range(4):
     data = np.load(src_npy[i], allow_pickle=True)[()]
     g_scores = np.array(data['g_scores'])
     i_scores = np.array(data['i_scores'])
@@ -53,7 +65,7 @@ for i in range(6):
     ymin, ymax = plt.ylim()
 
     lines = plt.plot(x, y, label='')
-    plt.setp(lines, 'color', color[i], 'linewidth', 5, 'label', label[i])
+    plt.setp(lines, 'color', color[i], 'linewidth', 2, 'label', label[i])
 
     matplotlib.rc('xtick', labelsize=10)
     matplotlib.rc('ytick', labelsize=10)

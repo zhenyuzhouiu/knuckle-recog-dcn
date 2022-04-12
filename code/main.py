@@ -28,7 +28,7 @@ def build_parser():
                         default=20)
     
     # Dataset Options
-    parser.add_argument('--train_path', type=str, dest='train_path', default='/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/PolyUKnuckleV1/Segmented/GUI_Seg/major/dataset/train_set')
+    parser.add_argument('--train_path', type=str, dest='train_path', default='/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/Database/Segmented/Session_2_128/')
 
     # Training Strategy
     parser.add_argument('--batch_size', type=int, dest='batch_size', default=16)
@@ -40,7 +40,7 @@ def build_parser():
     # Pre-defined Options
     parser.add_argument('--shifttype', type=str, dest='shifttype', default='randipshifted')
     parser.add_argument('--losstype', type=str, dest='losstype', default='triplet')
-    parser.add_argument('--alpha', type=float, dest='alpha', default=100)
+    parser.add_argument('--alpha', type=float, dest='alpha', default=20)
     parser.add_argument('--nnalpha', type=float, dest='nnalpha', default=40)
     parser.add_argument('--model', type=str, dest='model', default="DeConvRFNet")
     parser.add_argument('--shifted_size', type=int, dest='shifted_size', default=3)
