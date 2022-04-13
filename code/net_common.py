@@ -36,9 +36,9 @@ class DeconvResBlock(torch.nn.Module):
     def __init__(self, channels):
         super(DeconvResBlock, self).__init__()
         self.conv1 = DeformableConv2d2v(channels, channels, kernel_size=3, stride=1)
-        self.in1 = torch.nn.InstanceNorm2d(channels, affine=True)
+        self.in1 = torch.nn.BatchNorm2d(num_features=channels)
         self.conv2 = DeformableConv2d2v(channels, channels, kernel_size=3, stride=1)
-        self.in2 = torch.nn.InstanceNorm2d(channels, affine=True)
+        self.in2 = torch.nn.BatchNorm2d(num_features=channels)
         self.relu = torch.nn.ReLU()
 
     def forward(self, x):
@@ -64,13 +64,12 @@ class RIPShiftedLoss(torch.nn.Module):
             return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.nelement() * src.size(0)
 
     def rotate_mse_loss(self, src, target, mask):
-        se = (src-target)**2
+        se = (src - target) ** 2
         mask_se = se * mask
         sum_se = mask_se.view(src.size(0), -1).sum(1)
         sum = mask.view(mask.size(0), -1).sum(1)
-        mse = sum_se/sum
+        mse = sum_se / sum
         return mse
-
 
     def forward(self, fm1, fm2):
         # C * H * W
@@ -107,7 +106,7 @@ class RIPShiftedLoss(torch.nn.Module):
                 if isinstance(fm1, torch.autograd.Variable):
                     s_sub_min_dist = Variable(s_sub_min_dist, requires_grad=False)
 
-                r_sub_min_dist = torch.ones(bs).cuda()*sys.float_info.max
+                r_sub_min_dist = torch.ones(bs).cuda() * sys.float_info.max
                 if isinstance(fm1, torch.autograd.Variable):
                     r_sub_min_dist = Variable(r_sub_min_dist, requires_grad=False)
 
@@ -142,14 +141,14 @@ class RIPShiftedLoss(torch.nn.Module):
                         sub_dist = self.mse_loss(ref1, ref2).cuda()
                         s_sub_min_dist, _ = torch.min(torch.stack([s_sub_min_dist.squeeze(), sub_dist.squeeze()]), 0)
 
-                for a in range(-self.angle, self.angle+1):
+                for a in range(-self.angle, self.angle + 1):
                     s_bs, s_c, s_h, s_w = ref1.size()
                     mask = torch.ones([s_w, s_h])
                     ref2 = fm2[:, :, sub_y:sub_y + self.subsize, sub_x:sub_x + self.subsize]
-                    rotate_matrix = cv2.getRotationMatrix2D(center=[s_w/2, s_h/2], angle=a, scale=1)
+                    rotate_matrix = cv2.getRotationMatrix2D(center=[s_w / 2, s_h / 2], angle=a, scale=1)
                     ref2 = torch.squeeze(ref2, dim=1)
                     ref2 = ref2.cpu().detach().numpy()
-                    ref2 = ref2.transpose(1,2,0)
+                    ref2 = ref2.transpose(1, 2, 0)
                     r_ref2 = np.zeros(ref2.shape)
                     for n_g in range(s_bs):
                         r_ref2_n = cv2.warpAffine(ref2[:, :, n_g], M=rotate_matrix, dsize=(s_w, s_h))
@@ -178,7 +177,7 @@ class RIPShiftedLoss(torch.nn.Module):
         for i in range(topk_dist.size(1)):
             dist = topk_dist[:, i]
             sorted_d, indices = torch.sort(dist)
-            if self.topk >=0 and self.topk <= topk_dist.size(0):
+            if self.topk >= 0 and self.topk <= topk_dist.size(0):
                 min_dist[i] = torch.sum(sorted_d[0:self.topk])
             else:
                 min_dist[i] = torch.sum(dist)
@@ -201,11 +200,11 @@ class RANDIPShiftedLoss(torch.nn.Module):
             return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.nelement() * src.size(0)
 
     def rotate_mse_loss(self, src, target, mask):
-        se = (src-target)**2
+        se = (src - target) ** 2
         mask_se = se * mask
         sum_se = mask_se.view(src.size(0), -1).sum(1)
         sum = mask.view(mask.size(0), -1).sum(1)
-        mse = sum_se/sum
+        mse = sum_se / sum
         return mse
 
     def forward(self, fm1, fm2):
@@ -314,7 +313,7 @@ class RANDIPShiftedLoss(torch.nn.Module):
 
 
 class SubShiftedLoss(torch.nn.Module):
-    def __init__(self, dilation, subsize, topk = -1):
+    def __init__(self, dilation, subsize, topk=-1):
         super(SubShiftedLoss, self).__init__()
         self.dilation = dilation
         self.subsize = subsize
@@ -363,27 +362,31 @@ class SubShiftedLoss(torch.nn.Module):
 
                 for dw in range(-self.dilation, self.dilation + 1):
                     for dh in range(-self.dilation, self.dilation + 1):
-                        if sub_y+dh < 0:
+                        if sub_y + dh < 0:
                             if sub_x + dw < 0:
                                 ref2 = fm2[:, :, 0:self.subsize, 0:self.subsize]
                             elif sub_x + dw + self.subsize > w:
-                                ref2 = fm2[:, :, 0:self.subsize, fm2.size(-1)-self.subsize:fm2.size(-1)]
+                                ref2 = fm2[:, :, 0:self.subsize, fm2.size(-1) - self.subsize:fm2.size(-1)]
                             else:
                                 ref2 = fm2[:, :, 0:self.subsize, sub_x + dw:sub_x + self.subsize + dw]
-                        elif sub_y+dh+self.subsize > h:
+                        elif sub_y + dh + self.subsize > h:
                             if sub_x + dw < 0:
-                                ref2 = fm2[:, :, fm2.size(-2)-self.subsize:fm2.size(-2), 0:self.subsize]
+                                ref2 = fm2[:, :, fm2.size(-2) - self.subsize:fm2.size(-2), 0:self.subsize]
                             elif sub_x + dw + self.subsize > w:
-                                ref2 = fm2[:, :, fm2.size(-2)-self.subsize:fm2.size(-2), fm1.size(-1)-self.subsize:fm1.size(-1)]
+                                ref2 = fm2[:, :, fm2.size(-2) - self.subsize:fm2.size(-2),
+                                       fm1.size(-1) - self.subsize:fm1.size(-1)]
                             else:
-                                ref2 = fm2[:, :, fm2.size(-2)-self.subsize:fm2.size(-2), sub_x + dw:sub_x + self.subsize + dw]
+                                ref2 = fm2[:, :, fm2.size(-2) - self.subsize:fm2.size(-2),
+                                       sub_x + dw:sub_x + self.subsize + dw]
                         else:
                             if sub_x + dw < 0:
-                                ref2 = fm2[:, :, sub_y+dh:sub_y+self.subsize+dh, 0:self.subsize]
+                                ref2 = fm2[:, :, sub_y + dh:sub_y + self.subsize + dh, 0:self.subsize]
                             elif sub_x + dw + self.subsize > w:
-                                ref2 = fm2[:, :, sub_y + dh:sub_y + self.subsize + dh, fm1.size(-1)-self.subsize:fm1.size(-1)]
+                                ref2 = fm2[:, :, sub_y + dh:sub_y + self.subsize + dh,
+                                       fm1.size(-1) - self.subsize:fm1.size(-1)]
                             else:
-                                ref2 = fm2[:, :, sub_y + dh:sub_y + self.subsize + dh, sub_x + dw:sub_x + self.subsize + dw]
+                                ref2 = fm2[:, :, sub_y + dh:sub_y + self.subsize + dh,
+                                       sub_x + dw:sub_x + self.subsize + dw]
 
                         sub_dist = self.mse_loss(ref1, ref2).cuda()
                         sub_min_dist, _ = torch.min(torch.stack([sub_min_dist.squeeze(), sub_dist.squeeze()]), 0)
@@ -399,7 +402,6 @@ class SubShiftedLoss(torch.nn.Module):
                     topk_disk = sub_min_dist
                 else:
                     topk_disk = torch.vstack([topk_disk, sub_min_dist])
-
 
         for i in range(topk_disk.size(1)):
             dist = topk_disk[:, i]
@@ -424,11 +426,11 @@ class WholeRotationShiftedLoss(torch.nn.Module):
         #     return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.data.nelement() * src.size(0)
         # else:
         #     return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.nelement() * src.size(0)
-        se = (src-target)**2
-        mask_se = se*mask
+        se = (src - target) ** 2
+        mask_se = se * mask
         sum_se = mask_se.view(src.size(0), -1).sum(1)
         sum = mask.view(src.size(0), -1).sum(1)
-        mse = sum_se/sum
+        mse = sum_se / sum
         return mse
 
     def forward(self, fm1, fm2):
@@ -462,9 +464,9 @@ class WholeRotationShiftedLoss(torch.nn.Module):
                 else:
                     ref1, ref2 = ref1[:, :, -bv:, :], ref2[:, :, :h + bv, :]
 
-                for theta in range(-self.angle, self.angle+1):
+                for theta in range(-self.angle, self.angle + 1):
                     overlap_bs, overlap_c, overlap_h, overlap_w = ref1.size()
-                    M = cv2.getRotationMatrix2D(center=[overlap_w/2, overlap_h/2], angle=theta, scale=1)
+                    M = cv2.getRotationMatrix2D(center=[overlap_w / 2, overlap_h / 2], angle=theta, scale=1)
                     ref2 = torch.squeeze(ref2, dim=1)
                     n_ref2 = ref2.detach().cpu().numpy()
                     n_ref2 = n_ref2.transpose(1, 2, 0)
@@ -473,7 +475,7 @@ class WholeRotationShiftedLoss(torch.nn.Module):
                         r_ref2 = numpy.expand_dims(r_ref2, axis=-1)
                     r_ref2 = torch.from_numpy(r_ref2).to(fm1.device)
                     r_ref2.requires_grad = True
-                    r_ref2 = r_ref2.permute(2,0,1).unsqueeze(1)
+                    r_ref2 = r_ref2.permute(2, 0, 1).unsqueeze(1)
 
                     mask = np.ones([overlap_h, overlap_w])
                     r_mask = cv2.warpAffine(mask, M=M, dsize=[overlap_w, overlap_h])
@@ -627,7 +629,19 @@ class DeformableConv2d1v(torch.nn.Module):
 
 
 class DeformableConv2d2v(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False):
+    """
+    OFFICIAL: https://github.com/msracver/Deformable-ConvNets/tree/master/DCNv2_op
+    MMDETECTION: https://github.com/open-mmlab/mmdetection/tree/master/configs/dcnv2
+    CHENGDAZHI: https://github.com/chengdazhi/Deformable-Convolution-V2-PyTorch
+    """
+
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 kernel_size=3,
+                 stride=1,
+                 padding=1,
+                 bias=False):
         super(DeformableConv2d2v, self).__init__()
 
         assert type(kernel_size) == tuple or type(kernel_size) == int
@@ -668,21 +682,17 @@ class DeformableConv2d2v(torch.nn.Module):
         # max_offset = max(h, w)/4.
 
         offset = self.offset_conv(x)  # .clamp(-max_offset, max_offset)
-        modulator = 2. * torch.sigmoid(self.modulator_conv(x))
+        modulator = 1. * torch.sigmoid(self.modulator_conv(x))
 
-        x = torchvision.ops.deform_conv2d(input=x.float(),
-                                          offset=offset.float(),
+        x = torchvision.ops.deform_conv2d(input=x,
+                                          offset=offset,
                                           weight=self.regular_conv.weight,
                                           bias=self.regular_conv.bias,
                                           padding=self.padding,
                                           mask=modulator,
                                           stride=self.stride,
                                           )
-
         return x
-    def __int__(self):
-        super(DeformableConv2d2v, self).__int__()
-
 
 
 def drop_path(x, drop_prob: float = 0., training: bool = False):

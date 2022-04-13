@@ -31,7 +31,7 @@ def build_parser():
     parser.add_argument('--train_path', type=str, dest='train_path', default='/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/PolyUKnuckleV1/Segmented/GUI_Seg/major/dataset/train_set/')
 
     # Training Strategy
-    parser.add_argument('--batch_size', type=int, dest='batch_size', default=8)
+    parser.add_argument('--batch_size', type=int, dest='batch_size', default=4)
     parser.add_argument('--epochs', type=int, dest='epochs', default=3000)
     parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=1e-3)
     
