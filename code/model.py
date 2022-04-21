@@ -32,7 +32,7 @@ class Model(object):
         else:
             if args.shifttype == "wholershifted":
                 self.inference, self.loss = self._wholerandshift_model(args)
-            elif args.shifttype == "rsubshifted":
+            elif args.shifttype == "randsubshifted":
                 self.inference, self.loss = self._randipshift_model(args)
 
         self.optimizer = torch.optim.Adagrad(self.inference.parameters(), args.learning_rate)
@@ -72,7 +72,7 @@ class Model(object):
         elif args.model == "DeConvRFNet":
             inference = netdef_128.DeConvRFNet()
         else:
-            inference = efficientnet.EfficientNet(width_coefficient=1.0, depth_coefficient=1.0,dropout_rate=0.2)
+            inference = efficientnet.EfficientNet(width_coefficient=1.0, depth_coefficient=1.0, dropout_rate=0.2)
 
         examples = iter(self.train_loader)
         example_data, example_target = examples.next()

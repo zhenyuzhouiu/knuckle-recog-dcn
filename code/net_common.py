@@ -8,6 +8,7 @@ import numpy as np
 import torchvision.ops
 from torch.autograd import Variable
 import torch.nn.functional as F
+from scipy.ndimage import rotate
 
 
 class ResidualBlock(torch.nn.Module):
@@ -220,26 +221,41 @@ class RANDIPShiftedLoss(torch.nn.Module):
         self.subsize = subsize_list[0]
 
         # when the shift size: dilation is equal to 0
-        min_dist = torch.ones(bs).cuda() * sys.float_info.max
-        if isinstance(fm1, torch.autograd.Variable):
+        min_dist = torch.ones(bs, device=fm1.device) * sys.float_info.max
+        if fm1.requires_grad:
+            min_dist = Variable(min_dist, requires_grad=True)
+        else:
             min_dist = Variable(min_dist, requires_grad=False)
+        # if isinstance(fm1, torch.autograd.Variable):
+        #     min_dist = Variable(min_dist, requires_grad=False)
 
         if self.dilation == 0:
-            dist = self.mse_loss(fm1, fm2).cuda()
+            dist = self.mse_loss(fm1, fm2).to(fm1.device)
             min_dist, _ = torch.min(torch.stack([min_dist, dist]), 0)
             return min_dist
 
         # when the shift size: dilation is not equal to 0
-        min_dist = torch.zeros(bs).cuda()
-        if isinstance(fm1, torch.autograd.Variable):
+        min_dist = torch.zeros(bs).to(fm1.device)
+        if fm1.requires_grad:
+            min_dist = Variable(min_dist, requires_grad=True)
+        else:
             min_dist = Variable(min_dist, requires_grad=False)
+
+        rands_dist = torch.zeros(bs).to(fm1.device)
+        if fm1.requires_grad:
+            rands_dist = Variable(rands_dist, requires_grad=True)
+        else:
+            rands_dist = Variable(rands_dist, requires_grad=False)
+
 
         for sub_x in range(0, fm1.size(-1), self.subsize):
             for sub_y in range(0, fm1.size(-2), self.subsize):
                 ref1 = fm1[:, :, sub_y:sub_y + self.subsize, sub_x:sub_x + self.subsize]
 
                 sub_min_dist = torch.ones(bs).cuda() * sys.float_info.max
-                if isinstance(fm1, torch.autograd.Variable):
+                if fm1.requires_grad:
+                    sub_min_dist = Variable(sub_min_dist, requires_grad=True)
+                else:
                     sub_min_dist = Variable(sub_min_dist, requires_grad=False)
 
                 for dw in range(-self.dilation, self.dilation + 1):
@@ -272,42 +288,208 @@ class RANDIPShiftedLoss(torch.nn.Module):
 
                         for a in range(-self.angle, self.angle + 1):
                             s_bs, s_c, s_h, s_w = ref1.size()
-                            mask = torch.ones([s_w, s_h])
                             # ref2 = fm2[:, :, sub_y:sub_y + self.subsize, sub_x:sub_x + self.subsize]
-                            rotate_matrix = cv2.getRotationMatrix2D(center=[s_w / 2, s_h / 2], angle=a, scale=1)
+                            M = cv2.getRotationMatrix2D(center=[s_w / 2, s_h / 2], angle=a, scale=1)
                             a_ref2 = torch.squeeze(ref2, dim=1)
-                            a_ref2 = a_ref2.cpu().detach().numpy()
+                            a_ref2 = a_ref2.detach().cpu().numpy()
                             a_ref2 = a_ref2.transpose(1, 2, 0)
-                            a_ref2 = a_ref2.astype(np.float64)
-                            r_ref2 = np.zeros(a_ref2.shape)
-                            # for n_g in range(s_bs):
-                            #     r_ref2_n = cv2.warpAffine(a_ref2[:, :, n_g], M=rotate_matrix, dsize=(s_w, s_h))
-                            #     r_ref2[:, :, n_g] = r_ref2_n
-                            r_ref2 = cv2.warpAffine(a_ref2, M=rotate_matrix, dsize=(s_w, s_h))
-
-                            r_ref2 = torch.from_numpy(r_ref2).cuda()
+                            if s_bs > 512:
+                                num_chuncks = s_bs // 512
+                                num_reminder = s_bs % 512
+                                r_ref2 = np.zeros(a_ref2.shape)
+                                for nc in range(num_chuncks):
+                                    nc_ref2 = a_ref2[:, :, 0 + nc * 512:512 + nc * 512]
+                                    r_nc_ref2 = cv2.warpAffine(nc_ref2, M=M, dsize=[s_w, s_h])
+                                    r_ref2[:, :, 0 + nc * 512:512 + nc * 512] = r_nc_ref2
+                                if num_reminder > 0:
+                                    nc_ref2 = a_ref2[:, :, 512 + nc * 512:]
+                                    r_nc_ref2 = cv2.warpAffine(nc_ref2, M=M, dsize=[s_w, s_h])
+                                    if r_nc_ref2.ndim == 2:
+                                        r_nc_ref2 = numpy.expand_dims(r_nc_ref2, axis=-1)
+                                    r_ref2[:, :, 512 + nc * 512:] = r_nc_ref2
+                            else:
+                                r_ref2 = cv2.warpAffine(a_ref2, M=M, dsize=[s_w, s_h])
+                            if r_ref2.ndim == 2:
+                                r_ref2 = numpy.expand_dims(r_ref2, axis=-1)
+                            r_ref2 = torch.from_numpy(r_ref2).to(fm1.device)
                             r_ref2 = r_ref2.permute(2, 0, 1).unsqueeze(1)
-                            mask = mask.data.numpy()
-                            r_mask = cv2.warpAffine(mask, M=rotate_matrix, dsize=(s_w, s_h))
-                            r_mask = torch.from_numpy(r_mask).cuda()
+
+                            mask = np.ones([s_h, s_w])
+                            r_mask = cv2.warpAffine(mask, M=M, dsize=[s_w, s_h])
+                            r_mask = torch.from_numpy(r_mask).to(fm1.device)
                             r_mask = r_mask.unsqueeze(0).unsqueeze(0).repeat(s_bs, s_c, 1, 1)
 
-                            sub_dist = self.rotate_mse_loss(ref1, r_ref2, r_mask)
-                            sub_min_dist, _ = torch.min(torch.stack([sub_min_dist.squeeze(), sub_dist.squeeze()]), 0)
+                            rands_dist = self.rotate_mse_loss(ref1, r_ref2, r_mask)
+                            sub_min_dist, _ = torch.min(torch.stack([sub_min_dist.squeeze(), rands_dist.squeeze()]), 0)
 
-                sub_min_dist = torch.reshape(sub_min_dist, [1, sub_min_dist.size(0)])
-                if sub_x == 0 and sub_y == 0:
-                    topk_dist = sub_min_dist
+                min_dist = min_dist + sub_min_dist
+        #         sub_min_dist = torch.reshape(sub_min_dist, [1, sub_min_dist.size(0)])
+        #         if sub_x == 0 and sub_y == 0:
+        #             topk_dist = sub_min_dist
+        #         else:
+        #             topk_dist = torch.vstack([topk_dist, sub_min_dist])
+        #
+        # for i in range(topk_dist.size(1)):
+        #     dist = topk_dist[:, i]
+        #     sorted_d, indices = torch.sort(dist)
+        #     if 0 <= self.topk <= topk_dist.size(0):
+        #         min_dist[i] = torch.sum(sorted_d[0:self.topk])
+        #     else:
+        #         min_dist[i] = torch.sum(dist)
+
+
+        return min_dist.squeeze()
+
+
+class MultiProcessRANDIPShiftedLoss(torch.nn.Module):
+    def __init__(self, dilation, subsize, angle, topk=-1):
+        super(RANDIPShiftedLoss, self).__init__()
+        self.dilation = dilation
+        self.subsize = subsize
+        self.angle = angle
+        self.topk = topk
+
+    def mse_loss(self, src, target):
+        if isinstance(src, torch.autograd.Variable):
+            return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.data.nelement() * src.size(0)
+        else:
+            return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.nelement() * src.size(0)
+
+    def rotate_mse_loss(self, src, target, mask):
+        se = (src - target) ** 2
+        mask_se = se * mask
+        sum_se = mask_se.view(src.size(0), -1).sum(1)
+        sum = mask.view(mask.size(0), -1).sum(1)
+        mse = sum_se / sum
+        return mse
+
+    def forward(self, fm1, fm2):
+        # C * H * W
+        bs, _, h, w = fm1.size()
+
+        dilation_list = [h, w, self.dilation]
+        # sort() function doesn't have return value
+        dilation_list.sort()
+        self.dilation = dilation_list[0]
+        subsize_list = [h, w, self.subsize]
+        subsize_list.sort()
+        self.subsize = subsize_list[0]
+
+        # when the shift size: dilation is equal to 0
+        min_dist = torch.ones(bs, device=fm1.device) * sys.float_info.max
+        if fm1.requires_grad:
+            min_dist = Variable(min_dist, requires_grad=True)
+        else:
+            min_dist = Variable(min_dist, requires_grad=False)
+        # if isinstance(fm1, torch.autograd.Variable):
+        #     min_dist = Variable(min_dist, requires_grad=False)
+
+        if self.dilation == 0:
+            dist = self.mse_loss(fm1, fm2).to(fm1.device)
+            min_dist, _ = torch.min(torch.stack([min_dist, dist]), 0)
+            return min_dist
+
+        # when the shift size: dilation is not equal to 0
+        min_dist = torch.zeros(bs).to(fm1.device)
+        if fm1.requires_grad:
+            min_dist = Variable(min_dist, requires_grad=True)
+        else:
+            min_dist = Variable(min_dist, requires_grad=False)
+
+        rands_dist = torch.zeros(bs).to(fm1.device)
+        if fm1.requires_grad:
+            rands_dist = Variable(rands_dist, requires_grad=True)
+        else:
+            rands_dist = Variable(rands_dist, requires_grad=False)
+
+        for sub_x in range(0, fm1.size(-1), self.subsize):
+            for sub_y in range(0, fm1.size(-2), self.subsize):
+                ref1 = fm1[:, :, sub_y:sub_y + self.subsize, sub_x:sub_x + self.subsize]
+
+                sub_min_dist = torch.ones(bs).cuda() * sys.float_info.max
+                if fm1.requires_grad:
+                    sub_min_dist = Variable(sub_min_dist, requires_grad=True)
                 else:
-                    topk_dist = torch.vstack([topk_dist, sub_min_dist])
+                    sub_min_dist = Variable(sub_min_dist, requires_grad=False)
 
-        for i in range(topk_dist.size(1)):
-            dist = topk_dist[:, i]
-            sorted_d, indices = torch.sort(dist)
-            if 0 <= self.topk <= topk_dist.size(0):
-                min_dist[i] = torch.sum(sorted_d[0:self.topk])
-            else:
-                min_dist[i] = torch.sum(dist)
+                for dw in range(-self.dilation, self.dilation + 1):
+                    for dh in range(-self.dilation, self.dilation + 1):
+                        if sub_y + dh < 0:
+                            if sub_x + dw < 0:
+                                ref2 = fm2[:, :, 0:self.subsize, 0:self.subsize]
+                            elif sub_x + dw + self.subsize > w:
+                                ref2 = fm2[:, :, 0:self.subsize, fm2.size(-1) - self.subsize:fm2.size(-1)]
+                            else:
+                                ref2 = fm2[:, :, 0:self.subsize, sub_x + dw:sub_x + self.subsize + dw]
+                        elif sub_y + dh + self.subsize > h:
+                            if sub_x + dw < 0:
+                                ref2 = fm2[:, :, fm2.size(-2) - self.subsize:fm2.size(-2), 0:self.subsize]
+                            elif sub_x + dw + self.subsize > w:
+                                ref2 = fm2[:, :, fm2.size(-2) - self.subsize:fm2.size(-2),
+                                       fm1.size(-1) - self.subsize:fm1.size(-1)]
+                            else:
+                                ref2 = fm2[:, :, fm2.size(-2) - self.subsize:fm2.size(-2),
+                                       sub_x + dw:sub_x + self.subsize + dw]
+                        else:
+                            if sub_x + dw < 0:
+                                ref2 = fm2[:, :, sub_y + dh:sub_y + self.subsize + dh, 0:self.subsize]
+                            elif sub_x + dw + self.subsize > w:
+                                ref2 = fm2[:, :, sub_y + dh:sub_y + self.subsize + dh,
+                                       fm1.size(-1) - self.subsize:fm1.size(-1)]
+                            else:
+                                ref2 = fm2[:, :, sub_y + dh:sub_y + self.subsize + dh,
+                                       sub_x + dw:sub_x + self.subsize + dw]
+
+                        for a in range(-self.angle, self.angle + 1):
+                            s_bs, s_c, s_h, s_w = ref1.size()
+                            # ref2 = fm2[:, :, sub_y:sub_y + self.subsize, sub_x:sub_x + self.subsize]
+                            M = cv2.getRotationMatrix2D(center=[s_w / 2, s_h / 2], angle=a, scale=1)
+                            a_ref2 = torch.squeeze(ref2, dim=1)
+                            a_ref2 = a_ref2.detach().cpu().numpy()
+                            a_ref2 = a_ref2.transpose(1, 2, 0)
+                            if s_bs > 512:
+                                num_chuncks = s_bs // 512
+                                num_reminder = s_bs % 512
+                                r_ref2 = np.zeros(a_ref2.shape)
+                                for nc in range(num_chuncks):
+                                    nc_ref2 = a_ref2[:, :, 0 + nc * 512:512 + nc * 512]
+                                    r_nc_ref2 = cv2.warpAffine(nc_ref2, M=M, dsize=[s_w, s_h])
+                                    r_ref2[:, :, 0 + nc * 512:512 + nc * 512] = r_nc_ref2
+                                if num_reminder > 0:
+                                    nc_ref2 = a_ref2[:, :, 512 + nc * 512:]
+                                    r_nc_ref2 = cv2.warpAffine(nc_ref2, M=M, dsize=[s_w, s_h])
+                                    if r_nc_ref2.ndim == 2:
+                                        r_nc_ref2 = numpy.expand_dims(r_nc_ref2, axis=-1)
+                                    r_ref2[:, :, 512 + nc * 512:] = r_nc_ref2
+                            else:
+                                r_ref2 = cv2.warpAffine(a_ref2, M=M, dsize=[s_w, s_h])
+                            if r_ref2.ndim == 2:
+                                r_ref2 = numpy.expand_dims(r_ref2, axis=-1)
+                            r_ref2 = torch.from_numpy(r_ref2).to(fm1.device)
+                            r_ref2 = r_ref2.permute(2, 0, 1).unsqueeze(1)
+
+                            mask = np.ones([s_h, s_w])
+                            r_mask = cv2.warpAffine(mask, M=M, dsize=[s_w, s_h])
+                            r_mask = torch.from_numpy(r_mask).to(fm1.device)
+                            r_mask = r_mask.unsqueeze(0).unsqueeze(0).repeat(s_bs, s_c, 1, 1)
+
+                            rands_dist = self.rotate_mse_loss(ref1, r_ref2, r_mask)
+                            sub_min_dist, _ = torch.min(torch.stack([sub_min_dist.squeeze(), rands_dist.squeeze()]), 0)
+
+                min_dist = min_dist + sub_min_dist
+        #         sub_min_dist = torch.reshape(sub_min_dist, [1, sub_min_dist.size(0)])
+        #         if sub_x == 0 and sub_y == 0:
+        #             topk_dist = sub_min_dist
+        #         else:
+        #             topk_dist = torch.vstack([topk_dist, sub_min_dist])
+        #
+        # for i in range(topk_dist.size(1)):
+        #     dist = topk_dist[:, i]
+        #     sorted_d, indices = torch.sort(dist)
+        #     if 0 <= self.topk <= topk_dist.size(0):
+        #         min_dist[i] = torch.sum(sorted_d[0:self.topk])
+        #     else:
+        #         min_dist[i] = torch.sum(dist)
 
         return min_dist.squeeze()
 
@@ -421,7 +603,7 @@ class WholeRotationShiftedLoss(torch.nn.Module):
         self.vshift = vshift
         self.angle = angle
 
-    def mse_loss(self, src, target, mask):
+    def rotate_mse_loss(self, src, target, mask):
         # if isinstance(src, torch.autograd.Variable):
         #     return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.data.nelement() * src.size(0)
         # else:
@@ -432,6 +614,12 @@ class WholeRotationShiftedLoss(torch.nn.Module):
         sum = mask.view(src.size(0), -1).sum(1)
         mse = sum_se / sum
         return mse
+
+    def mse_loss(self, src, target):
+        if isinstance(src, torch.autograd.Variable):
+            return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.data.nelement() * src.size(0)
+        else:
+            return ((src - target) ** 2).view(src.size(0), -1).sum(1) / src.nelement() * src.size(0)
 
     def forward(self, fm1, fm2):
         # C * H * W
@@ -444,8 +632,12 @@ class WholeRotationShiftedLoss(torch.nn.Module):
         # min_dist shape (bs, )  & sys.float_info.max is to get the max float value
         # min_dist save the maximal float value
         min_dist = torch.ones(bs, device=fm1.device) * sys.float_info.max
-        if isinstance(fm1, torch.autograd.Variable):
+        # if isinstance(fm1, torch.autograd.Variable):
+        #     min_dist = Variable(min_dist, requires_grad=True)
+        if fm1.requires_grad:
             min_dist = Variable(min_dist, requires_grad=True)
+        else:
+            min_dist = Variable(min_dist, requires_grad=False)
 
         if self.hshift == 0 and self.vshift == 0:
             dist = self.mse_loss(fm1, fm2).to(fm1.device)
@@ -470,19 +662,36 @@ class WholeRotationShiftedLoss(torch.nn.Module):
                     ref2 = torch.squeeze(ref2, dim=1)
                     n_ref2 = ref2.detach().cpu().numpy()
                     n_ref2 = n_ref2.transpose(1, 2, 0)
-                    r_ref2 = cv2.warpAffine(n_ref2, M=M, dsize=[overlap_w, overlap_h])
+                    if overlap_bs > 512:
+                        num_chuncks = overlap_bs // 512
+                        num_reminder = overlap_bs % 512
+                        r_ref2 = np.zeros(n_ref2.shape)
+                        for nc in range(num_chuncks):
+                            nc_ref2 = n_ref2[:, :, 0+nc*512:512+nc*512]
+                            r_nc_ref2 = cv2.warpAffine(nc_ref2, M=M, dsize=[overlap_w, overlap_h])
+                            r_ref2[:, :, 0+nc*512:512+nc*512]= r_nc_ref2
+                        if num_reminder > 0:
+                            nc_ref2 = n_ref2[:, :, 512+nc*512:]
+                            r_nc_ref2 = cv2.warpAffine(nc_ref2, M=M, dsize=[overlap_w, overlap_h])
+                            if r_nc_ref2.ndim == 2:
+                                r_nc_ref2 = numpy.expand_dims(r_nc_ref2, axis=-1)
+                            r_ref2[:, :, 512+nc*512:]= r_nc_ref2
+                    else:
+                        r_ref2 = cv2.warpAffine(n_ref2, M=M, dsize=[overlap_w, overlap_h])
+                    # r_ref2 = rotate(n_ref2, angle=theta, reshape=False)
+
                     if r_ref2.ndim == 2:
                         r_ref2 = numpy.expand_dims(r_ref2, axis=-1)
                     r_ref2 = torch.from_numpy(r_ref2).to(fm1.device)
-                    r_ref2.requires_grad = True
                     r_ref2 = r_ref2.permute(2, 0, 1).unsqueeze(1)
 
                     mask = np.ones([overlap_h, overlap_w])
                     r_mask = cv2.warpAffine(mask, M=M, dsize=[overlap_w, overlap_h])
+                    # r_mask = rotate(mask, angle=theta, reshape=False)
                     r_mask = torch.from_numpy(r_mask).to(fm1.device)
                     r_mask = r_mask.unsqueeze(0).unsqueeze(0).repeat(overlap_bs, overlap_c, 1, 1)
 
-                    dist = self.mse_loss(ref1, r_ref2, r_mask).to(fm1.device)
+                    dist = self.rotate_mse_loss(ref1, r_ref2, r_mask).to(fm1.device)
 
                     min_dist, _ = torch.min(torch.stack([min_dist.squeeze(), dist.squeeze()]), 0)
         return min_dist.squeeze()

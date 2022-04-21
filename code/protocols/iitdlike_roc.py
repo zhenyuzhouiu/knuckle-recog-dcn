@@ -36,13 +36,20 @@ os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import net_common, netdef_32, netdef_128
+import efficientnet
 from protocol_util import *
 
 from torchvision import transforms
 from torch.utils.data import DataLoader
 transform = transforms.Compose([transforms.ToTensor()])
 
+
 def calc_feats(path):
+    """
+    1.Read a image from given a path
+    2.Normalize image from 0-255 to 0-1
+    3.Get the feature map from the model with inference()
+    """
     container = np.zeros((1, 3, args.default_size, args.default_size))
     im = np.array(
             Image.open(path).convert("RGB").resize((args.default_size, args.default_size)),
@@ -56,13 +63,20 @@ def calc_feats(path):
     fv = inference(container)
     return fv.cpu().data.numpy()
 
+
 def calc_feats_more(*paths):
+    """
+    1.Read a batch of images from the given paths
+    2.Normalize image from 0-255 to 0-1
+    3.Get a batch of feature from the model inference()
+    """
     container = np.zeros((len(paths), 3, args.default_size, args.default_size))
     for i, path in enumerate(paths):
         im = np.array(
             Image.open(path).convert('RGB').resize((args.default_size, args.default_size)),
             dtype=np.float32
             )
+        # change hxwxc = cxhxw
         im = np.transpose(im, (2, 0, 1))
         container[i, :, :, :] = im
     container /= 255.
@@ -75,7 +89,9 @@ def calc_feats_more(*paths):
 
     return fv.cpu().data.numpy()
 
+
 def genuine_imposter(test_path):
+
     subs = subfolders(test_path, preserve_prefix=True)
     nsubs = len(subs)
     feats_all = []
@@ -87,6 +103,9 @@ def genuine_imposter(test_path):
         feats_all.append(calc_feats_more(*subims))
     feats_all = torch.from_numpy(np.concatenate(feats_all, 0)).cuda()
 
+    # nsubs-> how many subjects on the test_path
+    # nims-> how many images on each of subjects' path
+    # for example, for hd(1-4), matching_matrix.shape = (714x4, 714x4)
     matching_matrix = np.ones((nsubs * nims, nsubs * nims)) * 1000000
     for i in range(1, feats_all.size(0)):
         feat1 =feats_all[:-i, :, :, :]
@@ -94,8 +113,9 @@ def genuine_imposter(test_path):
         # loss = _loss(feats_all[:-i, :, :, :], feats_all[i:, :, :, :])
         loss = _loss(feat1, feat2)
         matching_matrix[:-i, i] = loss
-        sys.stdout.write("[*] Pre-processing matching dict for {} / {} \r".format(i, feats_all.size(0)))
-        sys.stdout.flush()
+        print("[*] Pre-processing matching dict for {} / {} \r".format(i, feats_all.size(0)))
+        # sys.stdout.write("[*] Pre-processing matching dict for {} / {} \r".format(i, feats_all.size(0)))
+        # sys.stdout.flush()
     
     matt =  np.ones_like(matching_matrix) * 1000000
     matt[0, :] = matching_matrix[0, :]
@@ -103,7 +123,12 @@ def genuine_imposter(test_path):
         matt[i, i:] = matching_matrix[i, :-i]
         for j in range(i):
             matt[i, j] = matching_matrix[j, i - j]
-    
+
+    # matt is the matching score of
+    #   1  A1A2 A1A3 A1A4
+    # A2A1  1   A2A3 A2A4
+    # A3A1 A3A2  1   A3A4
+    # A4A1 A4A2 A4A3  1
     print ("\n [*] Done")
 
     g_scores = []
@@ -122,15 +147,16 @@ def genuine_imposter(test_path):
                 continue
             select.remove(j * nims + start_remainder)
         i_scores += list(np.min(np.reshape(matt[i, select], (-1, nims - 1)), axis=1))
-        sys.stdout.write("[*] Processing genuine imposter for {} / {} \r".format(i, nsubs * nims))
-        sys.stdout.flush()
+        print("[*] Processing genuine imposter for {} / {} \r".format(i, nsubs * nims))
+        # sys.stdout.write("[*] Processing genuine imposter for {} / {} \r".format(i, nsubs * nims))
+        # sys.stdout.flush()
     print ("\n [*] Done")
     return np.array(g_scores), np.array(i_scores), matt
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--test_path", type=str, default="/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/3Dfingerknuckle/3D Finger Knuckle Database New (20190711)/two-session/forefinger/session2/", dest="test_path")
-parser.add_argument("--out_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/FKV3/3D/protocol3.npy", dest="out_path")
-parser.add_argument("--model_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/fkv3_mRFN-128-stshifted-losstriplet-lr0.001-subd3-subs8-angle5-a100-nna40-s3_2022-04-01-22-54/ckpt_epoch_4280.pth", dest="model_path")
+parser.add_argument("--test_path", type=str, default="/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/HD/Original Images/GUI_Segment/HD/", dest="test_path")
+parser.add_argument("--out_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/cross-db/hd/wholeshiftedrotation/fkv3(1-104)-0.001-protocol3.npy", dest="out_path")
+parser.add_argument("--model_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/wholeimagerotationandshifted/fkv3_mRFN-128-stwholershifted-losstriplet-lr0.001-subd3-subs8-angle5-a20-nna40-s3_2022-04-13-15-02/ckpt_epoch_2780.pth", dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=128)
 parser.add_argument("--shift_size", type=int, dest="shift_size", default=3)
 parser.add_argument('--dilation_size', type=int, dest="dilation", default=3)
@@ -144,15 +170,18 @@ if "RFN-128" in args.model_path:
 else:
     if "DeConvRFNet" in args.model_path:
         inference = netdef_128.DeConvRFNet()
+    elif "EfficientNet" in args.model_path:
+        inference = efficientnet.EfficientNet(width_coefficient=1, depth_coefficient=1, dropout_rate=0.2)
 
 
 
 inference.load_state_dict(torch.load(args.model_path))
 # inference = torch.jit.load("knuckle-script-polyu.pt")
-Loss = net_common.ShiftedLoss(args.shift_size, args.shift_size)
+# Loss = net_common.ShiftedLoss(args.shift_size, args.shift_size)
 # Loss = net_common.SubShiftedLoss(args.dilation, args.subsize, topk=16)
 # Loss = net_common.RIPShiftedLoss(args.dilation, args.subsize, args.angle, topk=16)
 # Loss = net_common.RANDIPShiftedLoss(dilation=args.dilation, subsize=args.subsize, angle=args.angle, topk=16)
+Loss = net_common.WholeRotationShiftedLoss(args.shift_size, args.shift_size, args.angle)
 def _loss(feats1, feats2):
     loss = Loss(feats1, feats2)
     if isinstance(loss, torch.autograd.Variable):

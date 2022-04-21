@@ -12,7 +12,7 @@ from model import Model
 from torch.utils.tensorboard import SummaryWriter
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 
 def build_parser():
@@ -33,12 +33,12 @@ def build_parser():
     # Training Strategy
     parser.add_argument('--batch_size', type=int, dest='batch_size', default=4)
     parser.add_argument('--epochs', type=int, dest='epochs', default=3000)
-    parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=1e-3)
+    parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=1e-2)
     
     # Training Logging Interval
     parser.add_argument('--log_interval', type=int, dest='log_interval', default=1)
     # Pre-defined Options
-    parser.add_argument('--shifttype', type=str, dest='shifttype', default='wholershifted')
+    parser.add_argument('--shifttype', type=str, dest='shifttype', default='randsubshifted')
     parser.add_argument('--losstype', type=str, dest='losstype', default='triplet')
     parser.add_argument('--alpha', type=float, dest='alpha', default=10)
     parser.add_argument('--nnalpha', type=float, dest='nnalpha', default=40)

@@ -65,7 +65,7 @@ def genuine_imposter(test_path):
 
     feats_all = torch.from_numpy(np.concatenate(feats_all, 0)).cuda()
     matching_matrix = np.ones((nfeats, nfeats)) * 1e5
-    for i in xrange(1, feats_all.size(0)):
+    for i in range(1, feats_all.size(0)):
         loss = _loss(feats_all[:-i, :, :, :], feats_all[i:, :, :, :])
         matching_matrix[:-i, i] = loss
         sys.stdout.write("[*] Pre-processing matching dict for {} / {} \r".format(i, feats_all.size(0)))
@@ -73,20 +73,20 @@ def genuine_imposter(test_path):
 
     mmat =  np.ones_like(matching_matrix) * 1e5
     mmat[0, :] = matching_matrix[0, :]
-    for i in xrange(1, feats_all.size(0)):
+    for i in range(1, feats_all.size(0)):
         mmat[i, i:] = matching_matrix[i, :-i]
-        for j in xrange(i):
+        for j in range(i):
             mmat[i, j] = matching_matrix[j, i - j]
     print ("\n [*] Done")
 
     g_scores = []
     i_scores = []
-    for i in xrange(nfeats):
+    for i in range(nfeats):
         subj_idx = np.argmax(acc_len > i)
-        g_select = [feats_start[subj_idx] + k for k in xrange(feats_length[subj_idx])]
+        g_select = [feats_start[subj_idx] + k for k in range(feats_length[subj_idx])]
         g_select.remove(i)
         i_select = range(nfeats)
-        for k in xrange(feats_length[subj_idx]):
+        for k in range(feats_length[subj_idx]):
             i_select.remove(feats_start[subj_idx] + k)
         g_scores += list(mmat[i, g_select])
         i_scores += list(mmat[i, i_select])

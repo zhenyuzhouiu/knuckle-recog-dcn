@@ -226,10 +226,18 @@ class EfficientNet(nn.Module):
         #                [3, 192, 320, 6, 1, True, drop_connect_rate, 1]]
 
         default_cnf = [[3, 32, 16, 1, 1, True, drop_connect_rate, 1],
-                       [3, 16, 64, 6, 1, True, drop_connect_rate, 2],
-                       [5, 64, 128, 6, 1, True, drop_connect_rate, 2],
-                       [3, 128, 128, 6, 2, True, drop_connect_rate, 3],
-                       [5, 128, 64, 6, 1, True, drop_connect_rate, 3]]
+                       [3, 16, 24, 6, 1, True, drop_connect_rate, 2],
+                       [5, 24, 40, 6, 1, True, drop_connect_rate, 2],
+                       [3, 40, 80, 6, 1, True, drop_connect_rate, 3],
+                       [5, 80, 112, 6, 1, True, drop_connect_rate, 3],
+                       [5, 112, 192, 6, 2, True, drop_connect_rate, 4],
+                       [3, 192, 320, 6, 1, True, drop_connect_rate, 1]]
+
+        # default_cnf = [[3, 32, 16, 1, 1, True, drop_connect_rate, 1],
+        #                [3, 16, 64, 6, 1, True, drop_connect_rate, 2],
+        #                [5, 64, 128, 6, 1, True, drop_connect_rate, 2],
+        #                [3, 128, 128, 6, 2, True, drop_connect_rate, 3],
+        #                [5, 128, 64, 6, 1, True, drop_connect_rate, 3]]
 
         def round_repeats(repeats):
             """Round number of repeats based on depth multiplier."""
@@ -284,7 +292,7 @@ class EfficientNet(nn.Module):
 
         # build top
         last_conv_input_c = inverted_residual_setting[-1].out_c
-        last_conv_output_c = adjust_channels(32)
+        last_conv_output_c = adjust_channels(128)
         layers.update({"top": ConvBNActivation(in_planes=last_conv_input_c,
                                                out_planes=last_conv_output_c,
                                                kernel_size=3,

@@ -81,13 +81,13 @@ def genuine_imposter(test_path):
 
     nl = nsubs * nims
     matching_matrix = np.ones((nl, nl)) * 1000000
-    for i in xrange(nl):
+    for i in range(nl):
         loss = _loss(feats_probe, feats_gallery[i: i + nl, :, :, :])
         matching_matrix[:, i] = loss
         sys.stdout.write("[*] Pre-processing matching dict for {} / {} \r".format(i, nl))
         sys.stdout.flush()
     
-    for i in xrange(1, nl):
+    for i in range(1, nl):
         tmp = matching_matrix[i, -i:].copy()
         matching_matrix[i, i:] = matching_matrix[i, :-i]
         matching_matrix[i, :i] = tmp
@@ -95,13 +95,13 @@ def genuine_imposter(test_path):
 
     g_scores = []
     i_scores = []
-    for i in xrange(nl):
+    for i in range(nl):
         start_idx = int(math.floor(i / nims))
         start_remainder = int(i % nims)
         
         g_scores.append(float(np.min(matching_matrix[i, start_idx * nims: start_idx * nims + nims])))
         select = range(nl)
-        for j in xrange(nims):
+        for j in range(nims):
             select.remove(start_idx * nims + j)
         i_scores += list(np.min(np.reshape(matching_matrix[i, select], (-1, nims)), axis=1))
         sys.stdout.write("[*] Processing genuine imposter for {} / {} \r".format(i, nsubs * nims))

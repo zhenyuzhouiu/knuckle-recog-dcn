@@ -28,17 +28,21 @@ current_dir = os.path.dirname(current_path)
 parent_dir = current_dir[:current_dir.rfind(os.path.sep)]
 sys.path.insert(0, parent_dir)
 
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
+
 import net_common, netdef_128, netdef_32
 from protocol_util import *
+import efficientnet
 
 from torchvision import transforms
 from torch.utils.data import DataLoader
 transform = transforms.Compose([transforms.ToTensor()])
 
 def calc_feats(path):
-    container = np.zeros((1, 1, args.default_size, args.default_size))
+    container = np.zeros((1, 3, args.default_size, args.default_size))
     im = np.array(
-            Image.open(path).convert("L").resize((args.default_size, args.default_size)),
+            Image.open(path).convert("RGB").resize((args.default_size, args.default_size)),
             dtype=np.float32
             )
     container[0, 0, :, :] = im
@@ -50,13 +54,14 @@ def calc_feats(path):
     return fv.cpu().data.numpy()
 
 def calc_feats_more(*paths):
-    container = np.zeros((len(paths), 1, args.default_size, args.default_size))
+    container = np.zeros((len(paths), 3, args.default_size, args.default_size))
     for i, path in enumerate(paths):
         im = np.array(
-            Image.open(path).convert("L").resize((args.default_size, args.default_size)),
+            Image.open(path).convert("RGB").resize((args.default_size, args.default_size)),
             dtype=np.float32
             )
-        container[i, 0, :, :] = im
+        im = np.transpose(im, (2,0,1))
+        container[i, :, :, :] = im
     container /= 255.
     container = torch.from_numpy(container.astype(np.float32))
     container = container.cuda()
@@ -107,13 +112,14 @@ def genuine_imposter(test_path):
 
     nl = nsubs * nims
     matching_matrix = np.ones((nl, nl)) * 1000000
-    for i in xrange(nl):
+    for i in range(nl):
         loss = _loss(feats_probe, feats_gallery[i: i + nl, :, :, :])
         matching_matrix[:, i] = loss
-        sys.stdout.write("[*] Pre-processing matching dict for {} / {} \r".format(i, nl))
-        sys.stdout.flush()
+        print("[*] Pre-processing matching dict for {} / {} \r".format(i, nl))
+        # sys.stdout.write("[*] Pre-processing matching dict for {} / {} \r".format(i, nl))
+        # sys.stdout.flush()
     
-    for i in xrange(1, nl):
+    for i in range(1, nl):
         tmp = matching_matrix[i, -i:].copy()
         matching_matrix[i, i:] = matching_matrix[i, :-i]
         matching_matrix[i, :i] = tmp
@@ -121,39 +127,48 @@ def genuine_imposter(test_path):
 
     g_scores = []
     i_scores = []
-    for i in xrange(nl):
+    for i in range(nl):
         start_idx = int(math.floor(i / nims))
         start_remainder = int(i % nims)
         g_scores.append(float(np.min(matching_matrix[i, start_idx * nims: start_idx * nims + nims])))
-        select = range(nl)
-        for j in xrange(nims):
+        select = list(range(nl))
+        for j in range(nims):
             select.remove(start_idx * nims + j)
         i_scores += list(np.min(np.reshape(matching_matrix[i, select], (-1, nims)), axis=1))
-        sys.stdout.write("[*] Processing genuine imposter for {} / {} \r".format(i, nsubs * nims))
-        sys.stdout.flush()
+        print("[*] Processing genuine imposter for {} / {} \r".format(i, nsubs * nims))
+        # sys.stdout.write("[*] Processing genuine imposter for {} / {} \r".format(i, nsubs * nims))
+        # sys.stdout.flush()
     print ("\n [*] Done")
     return np.array(g_scores), np.array(i_scores), matching_matrix
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--test_path", type=str, default="", dest="test_path")
-parser.add_argument("--out_path", type=str, default="protocol3.npy", dest="out_path")
-parser.add_argument("--model_path", type=str, default="", dest="model_path")
+parser.add_argument("--test_path", type=str, default="/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/PolyUKnuckleV3/Segmented/two-session/", dest="test_path")
+parser.add_argument("--out_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/two-session/fkv3/WRS-0.001-protocol3.npy", dest="out_path")
+parser.add_argument("--model_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/two-session//ckpt_epoch_3700.pth", dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=128)
-parser.add_argument("--shift_size", type=int, dest="shift_size", default=5)
+parser.add_argument("--shift_size", type=int, dest="shift_size", default=3)
+parser.add_argument('--dilation_size', type=int, dest="dilation", default=3)
+parser.add_argument('--subpatch_size', type=int, dest="subsize", default=8)
+parser.add_argument("--rotate_angle", type=int, dest="angle", default=5)
 parser.add_argument("--save_mmat", type=bool, dest="save_mmat", default=False)
 
 args = parser.parse_args()
-if "RFN-32" in args.model_path:
-    inference = netdef_32.ResidualFeatureNet()
-elif "RFN-128" in args.model_path:
+if "RFN-128" in args.model_path:
     inference = netdef_128.ResidualFeatureNet()
 else:
-    inference = netdef_128.ResidualFeatureNet()
+    if "DeConvRFNet" in args.model_path:
+        inference = netdef_128.DeConvRFNet()
+    elif "EfficientNet" in args.model_path:
+        inference = efficientnet.EfficientNet(width_coefficient=1, depth_coefficient=1, dropout_rate=0.2)
 
 inference.load_state_dict(torch.load(args.model_path))
-ShiftedLoss_ = net_common.ShiftedLoss(args.shift_size, args.shift_size)
+# Loss = net_common.ShiftedLoss(args.shift_size, args.shift_size)
+# Loss = net_common.SubShiftedLoss(args.dilation, args.subsize, topk=16)
+# Loss = net_common.RIPShiftedLoss(args.dilation, args.subsize, args.angle, topk=16)
+# Loss = net_common.RANDIPShiftedLoss(dilation=args.dilation, subsize=args.subsize, angle=args.angle, topk=16)
+Loss = net_common.WholeRotationShiftedLoss(args.shift_size, args.shift_size, args.angle)
 def _loss(feats1, feats2):
-    loss = ShiftedLoss_(feats1, feats2)
+    loss = Loss(feats1, feats2)
     if isinstance(loss, torch.autograd.Variable):
         loss = loss.data
     return loss.cpu().numpy()
