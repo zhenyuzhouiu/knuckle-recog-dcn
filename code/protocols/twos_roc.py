@@ -142,15 +142,15 @@ def genuine_imposter(test_path):
     return np.array(g_scores), np.array(i_scores), matching_matrix
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--test_path", type=str, default="/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/PolyUKnuckleV3/Segmented/two-session/", dest="test_path")
-parser.add_argument("--out_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/two-session/fkv3/WRS-0.001-protocol3.npy", dest="out_path")
-parser.add_argument("--model_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/two-session//ckpt_epoch_3700.pth", dest="model_path")
+parser.add_argument("--test_path", type=str, default="/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/3Dfingerknuckle/3D Finger Knuckle Database New (20190711)/two-session/middlefinger/two-session/", dest="test_path")
+parser.add_argument("--out_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/challengingprotocol/tow-session/middle/WS-protocol3.npy", dest="out_path")
+parser.add_argument("--model_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/two-session/3d1s(191-228)_mRFN-128-stshifted-losstriplet-lr0.001-subd3-subs8-angle5-a20-nna40-s3_2022-04-16-15-42/ckpt_epoch_4280.pth", dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=128)
 parser.add_argument("--shift_size", type=int, dest="shift_size", default=3)
 parser.add_argument('--dilation_size', type=int, dest="dilation", default=3)
 parser.add_argument('--subpatch_size', type=int, dest="subsize", default=8)
 parser.add_argument("--rotate_angle", type=int, dest="angle", default=5)
-parser.add_argument("--save_mmat", type=bool, dest="save_mmat", default=False)
+parser.add_argument("--save_mmat", type=bool, dest="save_mmat", default=True)
 
 args = parser.parse_args()
 if "RFN-128" in args.model_path:
@@ -162,11 +162,11 @@ else:
         inference = efficientnet.EfficientNet(width_coefficient=1, depth_coefficient=1, dropout_rate=0.2)
 
 inference.load_state_dict(torch.load(args.model_path))
-# Loss = net_common.ShiftedLoss(args.shift_size, args.shift_size)
+Loss = net_common.ShiftedLoss(args.shift_size, args.shift_size)
 # Loss = net_common.SubShiftedLoss(args.dilation, args.subsize, topk=16)
 # Loss = net_common.RIPShiftedLoss(args.dilation, args.subsize, args.angle, topk=16)
 # Loss = net_common.RANDIPShiftedLoss(dilation=args.dilation, subsize=args.subsize, angle=args.angle, topk=16)
-Loss = net_common.WholeRotationShiftedLoss(args.shift_size, args.shift_size, args.angle)
+# Loss = net_common.WholeRotationShiftedLoss(args.shift_size, args.shift_size, args.angle)
 def _loss(feats1, feats2):
     loss = Loss(feats1, feats2)
     if isinstance(loss, torch.autograd.Variable):
