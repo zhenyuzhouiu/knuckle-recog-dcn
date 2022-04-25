@@ -8,7 +8,6 @@ import numpy as np
 import torchvision.ops
 from torch.autograd import Variable
 import torch.nn.functional as F
-from scipy.ndimage import rotate
 
 
 class ResidualBlock(torch.nn.Module):
@@ -339,6 +338,9 @@ class RANDIPShiftedLoss(torch.nn.Module):
 
 
         return min_dist.squeeze()
+
+
+
 
 
 class MultiProcessRANDIPShiftedLoss(torch.nn.Module):
