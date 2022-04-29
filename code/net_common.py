@@ -8,6 +8,7 @@ import numpy as np
 import torchvision.ops
 from torch.autograd import Variable
 import torch.nn.functional as F
+import math
 
 
 class ResidualBlock(torch.nn.Module):
@@ -246,7 +247,6 @@ class RANDIPShiftedLoss(torch.nn.Module):
         else:
             rands_dist = Variable(rands_dist, requires_grad=False)
 
-
         for sub_x in range(0, fm1.size(-1), self.subsize):
             for sub_y in range(0, fm1.size(-2), self.subsize):
                 ref1 = fm1[:, :, sub_y:sub_y + self.subsize, sub_x:sub_x + self.subsize]
@@ -336,11 +336,7 @@ class RANDIPShiftedLoss(torch.nn.Module):
         #     else:
         #         min_dist[i] = torch.sum(dist)
 
-
         return min_dist.squeeze()
-
-
-
 
 
 class MultiProcessRANDIPShiftedLoss(torch.nn.Module):
@@ -669,15 +665,15 @@ class WholeRotationShiftedLoss(torch.nn.Module):
                         num_reminder = overlap_bs % 512
                         r_ref2 = np.zeros(n_ref2.shape)
                         for nc in range(num_chuncks):
-                            nc_ref2 = n_ref2[:, :, 0+nc*512:512+nc*512]
+                            nc_ref2 = n_ref2[:, :, 0 + nc * 512:512 + nc * 512]
                             r_nc_ref2 = cv2.warpAffine(nc_ref2, M=M, dsize=[overlap_w, overlap_h])
-                            r_ref2[:, :, 0+nc*512:512+nc*512]= r_nc_ref2
+                            r_ref2[:, :, 0 + nc * 512:512 + nc * 512] = r_nc_ref2
                         if num_reminder > 0:
-                            nc_ref2 = n_ref2[:, :, 512+nc*512:]
+                            nc_ref2 = n_ref2[:, :, 512 + nc * 512:]
                             r_nc_ref2 = cv2.warpAffine(nc_ref2, M=M, dsize=[overlap_w, overlap_h])
                             if r_nc_ref2.ndim == 2:
                                 r_nc_ref2 = numpy.expand_dims(r_nc_ref2, axis=-1)
-                            r_ref2[:, :, 512+nc*512:]= r_nc_ref2
+                            r_ref2[:, :, 512 + nc * 512:] = r_nc_ref2
                     else:
                         r_ref2 = cv2.warpAffine(n_ref2, M=M, dsize=[overlap_w, overlap_h])
                     # r_ref2 = rotate(n_ref2, angle=theta, reshape=False)
@@ -697,6 +693,105 @@ class WholeRotationShiftedLoss(torch.nn.Module):
 
                     min_dist, _ = torch.min(torch.stack([min_dist.squeeze(), dist.squeeze()]), 0)
         return min_dist.squeeze()
+
+
+def generate_theta(i_radian, i_tx, i_ty, i_batch_size, i_h, i_w, i_dtype):
+    theta = torch.tensor([[math.cos(i_radian), math.sin(-i_radian) * i_h / i_w, i_tx],
+                          [math.sin(i_radian) * i_w / i_h, math.cos(i_radian), i_ty]],
+                         dtype=i_dtype).unsqueeze(0).repeat(i_batch_size, 1, 1)
+    return theta
+
+
+def mse_loss(i_fm1, i_fm2, i_mask):
+    # the input feature map shape is (bs, 1, h, w)
+    square_err = torch.mul(torch.pow((i_fm1 - i_fm2), 2), i_mask)
+    mean_se = square_err.view(i_fm1.size(0), -1).sum(1) / i_mask.view(i_fm1.size(0), -1).sum(1)
+    return mean_se
+
+
+class ImageBlockRotationAndTranslation(torch.nn.Module):
+    def __init__(self, i_block_size, i_v_shift, i_h_shift, i_angle, i_topk):
+        super(ImageBlockRotationAndTranslation, self).__init__()
+        self.block_size = i_block_size
+        self.v_shift = i_v_shift
+        self.h_shift = i_h_shift
+        self.angle = i_angle
+        self.topk = i_topk
+
+    def forward(self, i_fm1, i_fm2):
+        b, c, h, w = i_fm1.shape
+        if self.training:
+            min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=True, device=i_fm1.device)
+        else:
+            min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=False, device=i_fm1.device)
+
+        n_affine = 0
+        for sub_x in range(0, w, self.block_size):
+            for sub_y in range(0, h, self.block_size):
+                sub_fm1 = i_fm1[:, :, sub_y:sub_y + self.block_size, sub_x:sub_x + self.block_size]
+
+                sub_affine = 0
+                if self.training:
+                    sub_min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=True, device=i_fm1.device)
+                else:
+                    sub_min_dist = torch.zeros([b, ], dtype=i_fm1.dtype, requires_grad=False, device=i_fm1.device)
+
+                for dx in range(-self.h_shift, self.h_shift + 1):
+                    for dy in range(-self.v_shift, self.v_shift + 1):
+                        if sub_y + dy < 0:
+                            if sub_x + dx < 0:
+                                sub_fm2 = i_fm2[:, :, 0:self.block_size, 0:self.block_size]
+                            elif sub_x + dx + self.block_size > w:
+                                sub_fm2 = i_fm2[:, :, 0:self.block_size, w - self.block_size:w]
+                            else:
+                                sub_fm2 = i_fm2[:, :, 0:self.block_size, sub_x + dx:sub_x + self.block_size + dx]
+                        elif sub_y + dy + self.block_size > h:
+                            if sub_x + dx < 0:
+                                sub_fm2 = i_fm2[:, :, h - self.block_size:h, 0:self.block_size]
+                            elif sub_x + dx + self.block_size > w:
+                                sub_fm2 = i_fm2[:, :, h - self.block_size:h,
+                                          w - self.block_size:w]
+                            else:
+                                sub_fm2 = i_fm2[:, :, h - self.block_size:h,
+                                          sub_x + dx:sub_x + self.block_size + dx]
+                        else:
+                            if sub_x + dx < 0:
+                                sub_fm2 = i_fm2[:, :, sub_y + dy:sub_y + self.block_size + dy, 0:self.block_size]
+                            elif sub_x + dx + self.block_size > w:
+                                sub_fm2 = i_fm2[:, :, sub_y + dy:sub_y + self.block_size + dy,
+                                          w - self.block_size:w]
+                            else:
+                                sub_fm2 = i_fm2[:, :, sub_y + dy:sub_y + self.block_size + dy,
+                                          sub_x + dx:sub_x + self.block_size + dx]
+
+                        for a in range(-self.angle, self.angle + 1):
+                            sub_fm2_b, sub_fm2_c, sub_fm2_h, sub_fm2_w = sub_fm2.shape
+                            mask = torch.ones_like(sub_fm2, dtype=i_fm1.dtype, device=i_fm1.device)
+                            radian_a = a * math.pi / 180.
+                            theta = generate_theta(radian_a, 0, 0, sub_fm2_b, sub_fm2_h, sub_fm2_w, i_fm1.dtype)
+                            grid = F.affine_grid(theta, sub_fm2.size(), align_corners=True).to(i_fm1.device)
+                            r_sub_fm2 = F.grid_sample(sub_fm2, grid, align_corners=True)
+                            r_mask = F.grid_sample(mask, grid, align_corners=True)
+                            sub_mean_se = mse_loss(sub_fm1, r_sub_fm2, r_mask)
+                            if sub_affine == 0:
+                                sub_min_dist = sub_mean_se
+                            else:
+                                sub_min_dist = torch.vstack([sub_min_dist, sub_mean_se])
+                            sub_affine += 1
+
+                sub_min_dist, _ = torch.min(sub_min_dist, dim=0)
+                if n_affine == 0:
+                    min_dist = sub_min_dist
+                else:
+                    min_dist = torch.vstack([min_dist, sub_min_dist])
+                n_affine += 1
+        if self.training:
+            min_dist = torch.sum(min_dist, dim=0)
+        else:
+            min_dist,_ = torch.topk(min_dist, k=self.topk, dim=0, largest=False)
+            min_dist = torch.sum(min_dist, dim=0)
+
+        return min_dist
 
 
 class ShiftedLoss(torch.nn.Module):

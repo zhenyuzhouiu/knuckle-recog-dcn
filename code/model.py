@@ -32,8 +32,8 @@ class Model(object):
         else:
             if args.shifttype == "wholershifted":
                 self.inference, self.loss = self._wholerandshift_model(args)
-            elif args.shifttype == "randsubshifted":
-                self.inference, self.loss = self._randipshift_model(args)
+            elif args.shifttype == "imageblockwithgradient":
+                self.inference, self.loss = self._imageblockwithgradient_model(args)
 
         self.optimizer = torch.optim.Adagrad(self.inference.parameters(), args.learning_rate)
 
@@ -60,7 +60,7 @@ class Model(object):
 
         return train_loader, len(train_dataset)
 
-    def exp_lr_scheduler(self, epoch, lr_decay=0.5, lr_decay_epoch=100):
+    def exp_lr_scheduler(self, epoch, lr_decay=0.1, lr_decay_epoch=100):
         if epoch % lr_decay_epoch == 0:
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] *= lr_decay
@@ -120,6 +120,25 @@ class Model(object):
         inference.cuda()
         return inference, loss
 
+    def _imageblockwithgradient_model(self, args):
+        if args.model == "RFN-128":
+            inference = netdef_128.ResidualFeatureNet()
+        elif args.model == "DeConvRFNet":
+            inference = netdef_128.DeConvRFNet()
+        else:
+            inference = efficientnet.EfficientNet(width_coefficient=1.0, depth_coefficient=1.0,dropout_rate=0.2)
+
+        examples = iter(self.train_loader)
+        example_data, example_target = examples.next()
+        data = example_data.view(-1, 3, example_data.size(2), example_data.size(3))
+        self.writer.add_graph(inference, data[0,:,:,:].unsqueeze(0))
+
+        loss = net_common.ImageBlockRotationAndTranslation(i_block_size=args.subsize, i_v_shift=args.dilation,
+                                                           i_h_shift=args.dilation, i_angle=args.angle)
+        util.Logging("Successfully building image blocks rotate-and-shifted with gradient triplet loss")
+        inference.cuda()
+        return inference, loss
+
     def _shift_model(self, args):
         if args.model == "RFN-128":
             inference = netdef_128.ResidualFeatureNet()
@@ -149,7 +168,7 @@ class Model(object):
             start_epoch = 1
 
         for e in range(start_epoch, args.epochs + start_epoch):
-            self.exp_lr_scheduler(e, lr_decay_epoch=300)
+            self.exp_lr_scheduler(e-start_epoch, lr_decay_epoch=300)
             self.inference.train()
             agg_loss = 0.
             count = 0
@@ -228,17 +247,17 @@ class Model(object):
             self.load(args.start_ckpt)
         else:
             start_epoch = 1
-    
+
+        # self.inference.train()
         for e in range(start_epoch, args.epochs + start_epoch):
-            self.exp_lr_scheduler(e, lr_decay_epoch=300)
-            self.inference.train()
+            self.exp_lr_scheduler(e - start_epoch, lr_decay_epoch=300)
+            # self.inference.train()
             agg_loss = 0.
             count = 0
             for batch_id, (x, _) in enumerate(self.train_loader):
                 count += len(x)
-                self.optimizer.zero_grad()
+                # self.optimizer.zero_grad()
                 x = x.cuda()
-                
                 x = Variable(x, requires_grad=False)
 
                 if "RFN-32" in args.model:
@@ -266,9 +285,11 @@ class Model(object):
                 loss.backward()
                 self.optimizer.step()
 
+                self.optimizer.zero_grad()
                 # agg_loss += loss.data[0]
                 agg_loss += loss.data
                 train_loss += loss.item()
+
 
                 if e % args.log_interval == 0:
                     mesg = "{}\tEpoch {}:\t[{}/{}]\t {:.6f}".format(

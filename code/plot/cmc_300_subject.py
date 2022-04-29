@@ -23,12 +23,12 @@ from functools import reduce
 #
 # if args.label == '':
 #     args.label = args.src_npy
-nobjects = [6, 6]
-src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/two-session/3d1s/WS-protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/two-session/3d1s/WSR-protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/3d1s-efficientnet/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/fine-tuning/3d1s-deconvrfn/protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/fine-tuning/3d1s-efficientnet/protocol3.npy',
+nobjects = [6, 6, 6, 6, 6]
+src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/two-session/fkv3/WRS-0.01-protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/two-session/fkv3/WRS-0.001-protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/two-session/fkv3/WS-O.O1-protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/two-session/fkv3/WS-0.001-protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/imageblockrotationandshifted/two-session/fkv3-rfn/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeshifted/3d1s-rfn/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/fkv3-efficientnet/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeshifted/fkv3-rfn/protocol3.npy',
@@ -36,11 +36,11 @@ src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP16/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN/protocol3.npy']
 
-label = ['RFN-128-WS',
-         'RFN-128-WSR',
-         'EfficientNet',
-         'DeConvRFN-FT',
-         'EfficientNet-FT',
+label = ['WRS-0.01',
+         'WRS-0.001',
+         'WS-0.01',
+         'WS-0.001',
+         'IBRS',
          'RFN-128-WS',
          'EfficientNet-WRS',
          'RFN-WS',
@@ -59,9 +59,9 @@ color = ['#000000',
          '#808000',
          '#ff00ff',
          '#ff0000']
-dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/two-session/3d1s-protocol3_cmc.pdf'
+dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/two-session/fkv3-ibrs-protocol3_cmc.pdf'
 
-for n in range(2):
+for n in range(4):
     data = np.load(src_npy[n], allow_pickle=True)[()]
     match_dict = np.array(data['mmat'])
     nsamples = np.shape(match_dict)[0]

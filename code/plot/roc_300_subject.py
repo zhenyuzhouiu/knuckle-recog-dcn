@@ -23,11 +23,12 @@ from plotroc_basic import *
 # if args.label == '':
 #     args.label = args.src_npy
 
-src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/challengingprotocol/tow-session/forefinger/WRS-protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/challengingprotocol/tow-session/forefinger/WS-protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/two-session/fkv3/WS-0.01-protocol3.npy',
+nobjects = [6, 6, 6, 6, 6]
+src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/two-session/fkv3/WRS-0.01-protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/two-session/fkv3/WS-0.001-protocol3.npy',
-           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/fine-tuning/3d1s-efficientnet/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/imageblockrotationandshifted/two-session/fkv3-rfn/protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/two-session/fkv3/WS-0.001-protocol3.npy',
+           '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/imageblockrotationandshifted/two-session/fkv3-rfn/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeshifted/3d1s-rfn/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeimagerotationandshifted/fkv3-efficientnet/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/wholeshifted/fkv3-rfn/protocol3.npy',
@@ -35,11 +36,11 @@ src_npy = ['/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN-TOP16/protocol3.npy',
            '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/RFN/HD/RFN/protocol3.npy']
 
-label = ['RFN-128-WRS',
-         'RFN-128-WS',
-         'RFN-WS-0.01',
-         'RFN-WS-0.001',
-         'EfficientNet-FT',
+label = ['RFN-WRS',
+         'RFN-WS',
+         'RFN-IBRS',
+         'WS-0.001',
+         'IBRS',
          'RFN-128-WS',
          'EfficientNet-WRS',
          'RFN-WS',
@@ -58,9 +59,9 @@ color = ['#000000',
          '#808000',
          '#ff00ff',
          '#ff0000']
-dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/challengingprotocol/tow-session/forefinger-protocol3_roc.pdf'
+dst = '/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/two-session/fkv3-ibrs-protocol3_cmc.pdf'
 
-for i in range(2):
+for i in range(3):
     data = np.load(src_npy[i], allow_pickle=True)[()]
     g_scores = np.array(data['g_scores'])
     i_scores = np.array(data['i_scores'])

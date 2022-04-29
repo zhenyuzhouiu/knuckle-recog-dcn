@@ -23,24 +23,24 @@ def build_parser():
 
     parser.add_argument('--checkpoint_dir', type=str,
                         dest='checkpoint_dir', default='./checkpoint/')
-    parser.add_argument('--db_prefix', dest='db_prefix', default='fkv1')
+    parser.add_argument('--db_prefix', dest='db_prefix', default='fkv3(session_2_1_104)')
     parser.add_argument('--checkpoint_interval', type=int, dest='checkpoint_interval',
-                        default=20)
+                        default=10)
     
     # Dataset Options
-    parser.add_argument('--train_path', type=str, dest='train_path', default='/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/PolyUKnuckleV1/Segmented/GUI_Seg/major/dataset/train_set/')
+    parser.add_argument('--train_path', type=str, dest='train_path', default='/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/PolyUKnuckleV3/Segmented/Session_2_128/')
 
     # Training Strategy
-    parser.add_argument('--batch_size', type=int, dest='batch_size', default=4)
+    parser.add_argument('--batch_size', type=int, dest='batch_size', default=8)
     parser.add_argument('--epochs', type=int, dest='epochs', default=3000)
-    parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=1e-2)
+    parser.add_argument('--learning_rate', type=float, dest='learning_rate', default=1e-3)
     
     # Training Logging Interval
     parser.add_argument('--log_interval', type=int, dest='log_interval', default=1)
     # Pre-defined Options
-    parser.add_argument('--shifttype', type=str, dest='shifttype', default='randsubshifted')
+    parser.add_argument('--shifttype', type=str, dest='shifttype', default='imageblockwithgradient')
     parser.add_argument('--losstype', type=str, dest='losstype', default='triplet')
-    parser.add_argument('--alpha', type=float, dest='alpha', default=10)
+    parser.add_argument('--alpha', type=float, dest='alpha', default=20)
     parser.add_argument('--nnalpha', type=float, dest='nnalpha', default=40)
     parser.add_argument('--model', type=str, dest='model', default="RFN-128")
     parser.add_argument('--shifted_size', type=int, dest='shifted_size', default=3)
@@ -49,7 +49,7 @@ def build_parser():
     parser.add_argument('--rotate_angle', type=int, dest="angle", default=5)
 
     # fine-tuning
-    parser.add_argument('--start_ckpt', type=str, dest='start_ckpt', default="")
+    parser.add_argument('--start_ckpt', type=str, dest='start_ckpt', default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/fkv1_mRFN-128-stimageblockwithgradient-losstriplet-lr0.01-subd3-subs8-angle5-a10-nna40-s3_2022-04-27-23-39/ckpt_epoch_80.pth")
     return parser
 
 def main():

@@ -33,7 +33,7 @@ parent_dir = current_dir[:current_dir.rfind(os.path.sep)]
 sys.path.insert(0, parent_dir)
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 import net_common, netdef_32, netdef_128
 import efficientnet
@@ -120,8 +120,10 @@ def genuine_imposter(test_path):
     matt =  np.ones_like(matching_matrix) * 1000000
     matt[0, :] = matching_matrix[0, :]
     for i in range(1, feats_all.size(0)):
+        # matching_matrix每行的数值向后移动一位
         matt[i, i:] = matching_matrix[i, :-i]
         for j in range(i):
+            # matt[i, j] = matt[j, i]
             matt[i, j] = matching_matrix[j, i - j]
 
     # matt is the matching score of
@@ -140,8 +142,10 @@ def genuine_imposter(test_path):
         argmin_idx = np.argmin(matt[i, start_idx * nims: start_idx * nims + nims])
         g_scores.append(float(matt[i, start_idx * nims + argmin_idx]))
         select = list(range(nsubs * nims))
+        # remove genuine matching score
         for j in range(nims):
             select.remove(start_idx * nims + j)
+        # remove imposter matching scores of same index sample on other subjects
         for j in range(nsubs):
             if j == start_idx:
                 continue
@@ -154,9 +158,9 @@ def genuine_imposter(test_path):
     return np.array(g_scores), np.array(i_scores), matt
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--test_path", type=str, default="/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/HD/Original Images/GUI_Segment/HD/", dest="test_path")
-parser.add_argument("--out_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/cross-db/hd/wholeshiftedrotation/fkv3(1-104)-0.001-protocol3.npy", dest="out_path")
-parser.add_argument("--model_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/wholeimagerotationandshifted/fkv3_mRFN-128-stwholershifted-losstriplet-lr0.001-subd3-subs8-angle5-a20-nna40-s3_2022-04-13-15-02/ckpt_epoch_2780.pth", dest="model_path")
+parser.add_argument("--test_path", type=str, default="/home/zhenyuzhou/Pictures/Finger-Knuckle-Database/PolyUKnuckleV3/Segmented/Session_1_128/1-104/", dest="test_path")
+parser.add_argument("--out_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/output/imageblockrotationandshifted/fkv3-rfn/d3-a5-topk12-protocol3.npy", dest="out_path")
+parser.add_argument("--model_path", type=str, default="/home/zhenyuzhou/Desktop/finger-knuckle/deep-learning/knuckle-recog-dcn/code/checkpoint/fkv3(session_2_1_104)_mRFN-128-stimageblockwithgradient-losstriplet-lr0.001-subd3-subs8-angle5-a20-nna40-s3_2022-04-28-20-43/ckpt_epoch_1000.pth", dest="model_path")
 parser.add_argument("--default_size", type=int, dest="default_size", default=128)
 parser.add_argument("--shift_size", type=int, dest="shift_size", default=3)
 parser.add_argument('--dilation_size', type=int, dest="dilation", default=3)
@@ -181,7 +185,10 @@ inference.load_state_dict(torch.load(args.model_path))
 # Loss = net_common.SubShiftedLoss(args.dilation, args.subsize, topk=16)
 # Loss = net_common.RIPShiftedLoss(args.dilation, args.subsize, args.angle, topk=16)
 # Loss = net_common.RANDIPShiftedLoss(dilation=args.dilation, subsize=args.subsize, angle=args.angle, topk=16)
-Loss = net_common.WholeRotationShiftedLoss(args.shift_size, args.shift_size, args.angle)
+# Loss = net_common.WholeRotationShiftedLoss(args.shift_size, args.shift_size, args.angle)
+Loss = net_common.ImageBlockRotationAndTranslation(i_block_size=args.subsize, i_v_shift=args.dilation, i_h_shift=args.dilation, i_angle=args.angle, i_topk=12)
+Loss.cuda()
+Loss.eval()
 def _loss(feats1, feats2):
     loss = Loss(feats1, feats2)
     if isinstance(loss, torch.autograd.Variable):
